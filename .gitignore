@@ -1,0 +1,27 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs/logAxe
+/logAxe/bin/Debug
+/logAxe/obj/Debug
+/logAxeCommon/obj/Debug
+/logAxeEngine/bin/Debug
+/logAxeEngine/obj/Debug
+/logAxeCommon/bin/Debug
+/logAxePlugin/bin/Debug
+/logAxePlugin/obj/Debug
+/logAxeEngine.UnitTest/bin/Debug
+/logAxeEngine.UnitTest/obj/Debug
+/packages
+/logAxe/bin/Release
+/logAxe/obj/Release
+/logAxeCommon/bin/Release
+/logAxeCommon/obj/Release
+/logAxeEngine/obj/Release
+/logAxeEngine/bin/Release
+/logAxePlugin/obj/Release
+/logAxePlugin/bin/Release
+/logAxeEngine.UnitTest/obj/Release
+/logAxeEngine.UnitTest/bin/Release
+/logAxe/logAxe.csproj.user

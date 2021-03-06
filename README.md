@@ -1,2 +1,2 @@
 # logAxe
-Log Viewer application
+New log viewer application

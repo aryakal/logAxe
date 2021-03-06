@@ -1,0 +1,100 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{14CC60A6-5B45-4699-95E5-ED4A2D25025B}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>logAxeEngine</RootNamespace>
+    <AssemblyName>logAxeEngine</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Newtonsoft.Json, Version=12.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.12.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Common\AppSize.cs" />
+    <Compile Include="Common\FileObject.cs" />
+    <Compile Include="Common\LogFile.cs" />
+    <Compile Include="Common\MessageExchangeHelper.cs" />
+    <Compile Include="Common\SystemIO.cs" />
+    <Compile Include="Common\TermFilter.cs" />
+    <Compile Include="Common\FileObjectHelper.cs" />
+    <Compile Include="EventMessages\CurrentGlobalLine.cs" />
+    <Compile Include="Engines\LogAxeEngineManager.cs" />
+    <Compile Include="Engines\LogMessageEngine.cs" />
+    <Compile Include="Engines\PluginManager.cs" />
+    <Compile Include="EventMessages\CurentResourceUsage.cs" />
+    <Compile Include="EventMessages\FileParseProgressEvent.cs" />
+    <Compile Include="Interfaces\IMessageBroker.cs" />
+    <Compile Include="Interfaces\IMessageReceiver.cs" />
+    <Compile Include="Interfaces\ILogLinesStorage.cs" />
+    <Compile Include="Interfaces\IEngine.cs" />
+    <Compile Include="Common\LogFileInfo.cs" />
+    <Compile Include="Common\LogFrame.cs" />
+    <Compile Include="Common\NammedLogger.cs" />
+    <Compile Include="Common\Utils.cs" />
+    <Compile Include="Interfaces\IStorageDataBase.cs" />
+    <Compile Include="Interfaces\IStorageString.cs" />
+    <Compile Include="Interfaces\ISystemIO.cs" />
+    <Compile Include="logAxeEngine.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Storage\GenericHugeStore.cs" />
+    <Compile Include="Storage\StorageMetaDatabase.cs" />
+    <Compile Include="Storage\StorageStringDB.cs" />
+    <Compile Include="Storage\StorageStringList.cs" />
+    <Compile Include="Storage\StorageStringXEfficient.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\logAxeCommon\logAxeCommon.csproj">
+      <Project>{33741f70-80e9-4939-b6f7-906df7260b4b}</Project>
+      <Name>logAxeCommon</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\logAxePlugin\logAxePlugin.csproj">
+      <Project>{43d0c640-a7e0-4505-837d-fd56f122b7d6}</Project>
+      <Name>logAxePlugin</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
