@@ -43,7 +43,7 @@ namespace logAxeEngine.Common
         public static string AppMemGapSize(double size)
         {
             return GetHumanSize(GetAppMemSize().Memory - size);
-        }        
+        }
         public static AppSize GetAppMemSizeStablized()
         {
             ClearAllGCMemory();

@@ -2,9 +2,9 @@
 
 namespace logAxeEngine.Interfaces
 {
-    public interface IStorageDataBase : ILogLinesStorage
-    {
-        void AddLogFile(LogFile logFile, int fileNumber);
-        void OptimizeData();
-    }
+   public interface IStorageDataBase : ILogLinesStorage
+   {
+      void AddLogFile(LogFile logFile, int fileNumber);
+      void OptimizeData();
+   }
 }

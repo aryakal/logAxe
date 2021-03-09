@@ -1,5 +1,5 @@
 ﻿namespace logAxeEngine.Interfaces
-{    
+{
     //public interface IMessageReceiver
     //{
     //    void GetMessage(IMessage message);

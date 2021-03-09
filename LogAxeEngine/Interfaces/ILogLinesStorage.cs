@@ -3,16 +3,16 @@ using logAxeEngine.Common;
 
 namespace logAxeEngine.Interfaces
 {
-    public interface ILogLinesStorage
-    {
-        int TotalLogLines { get; }
-        void Clear();
-        
-        LogLine GetLogLine(int globalLineNumber);
-        LogType GetLogLineType(int globalLineNumber);
+   public interface ILogLinesStorage
+   {
+      int TotalLogLines { get; }
+      void Clear();
 
-        LogFrame Filter(TermFilter term);
-        LogFrame GetMasterFrame();
-    }
+      LogLine GetLogLine(int globalLineNumber);
+      LogType GetLogLineType(int globalLineNumber);
+
+      LogFrame Filter(TermFilter term);
+      LogFrame GetMasterFrame();
+   }
 
 }

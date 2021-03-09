@@ -20,7 +20,7 @@ namespace logAxeEngine.Common
         public LogFile(string fileName, byte[] fileData)
         {
             FileName = fileName;
-            FileData = fileData;            
+            FileData = fileData;
         }
 
         public void Clear()

@@ -28,7 +28,7 @@ namespace logAxeEngine.Common
 
         public void LogDebugPrg(string msg)
         {
-            if(PublishDebugLogs)
+            if (PublishDebugLogs)
                 Log("D", _name, msg, DefaultColor, true);
         }
 
@@ -38,7 +38,7 @@ namespace logAxeEngine.Common
         }
 
         public void LogError(string msg)
-        {   
+        {
             Log("E", _name, msg, ConsoleColor.Red);
         }
 

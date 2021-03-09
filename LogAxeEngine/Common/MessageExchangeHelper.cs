@@ -11,7 +11,7 @@ namespace logAxeEngine.Common
         public MessageExchangeHelper(IMessageBroker msgEngine, IMessageReceiver receiver)
         {
             _msgEngine = msgEngine;
-            ClientId = _msgEngine.RegisterClient(receiver);            
+            ClientId = _msgEngine.RegisterClient(receiver);
         }
 
         public void Unregister()
@@ -33,6 +33,6 @@ namespace logAxeEngine.Common
                     FromClientID = ClientId,
                     MessageType = eventType
                 });
-        }        
+        }
     }
 }

@@ -26,7 +26,7 @@ namespace logAxe
             //Assembly assembly = Assembly.GetExecutingAssembly();
             var version = Assembly.GetEntryAssembly().GetName().Version;
             VersionNo = $"{version.Major}.{version.Minor}.{version.Build}";
-            
+
             //Stack = global::logAxe.Properties.Resources.ConePreview_16x;
 
             var engine = new LogAxeEngineManager();
@@ -43,7 +43,7 @@ namespace logAxe
 
         public static void DeInit()
         {
-            
+
         }
 
         public static ILogEngine Engine { get; set; }
@@ -117,7 +117,7 @@ namespace logAxe
         private void OnDragDrop(object sender, DragEventArgs e)
         {
             string[] fileList = (string[])e.Data.GetData(DataFormats.FileDrop, false);
-            ViewCommon.Engine.AddFiles(paths:fileList, processAsync:true, addFileAsync:true);
+            ViewCommon.Engine.AddFiles(paths: fileList, processAsync: true, addFileAsync: true);
             //ViewCommon.Engine.AddFiles(fileList, false);
         }
     }

@@ -14,10 +14,10 @@ namespace logAxe
         static void Main()
         {
 
-//#if DEBUG
-//            Utils.PublishLogs = true;
-//            Utils.PublishDebugLogs = true;
-//#endif
+            //#if DEBUG
+            //            Utils.PublishLogs = true;
+            //            Utils.PublishDebugLogs = true;
+            //#endif
 
             if (Environment.OSVersion.Version.Major >= 6)
                 SetProcessDPIAware();
