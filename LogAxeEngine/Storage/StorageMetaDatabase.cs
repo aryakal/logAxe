@@ -104,7 +104,7 @@ namespace logAxeEngine.Storage
       }
       public LogLine GetLogLine(int globalLineNumber)
       {
-         var st = _store.RetriveData(globalLineNumber);
+         var st = GetTranslatedLine(globalLineNumber);
 
          return new LogLine()
          {
@@ -119,7 +119,7 @@ namespace logAxeEngine.Storage
       }
       public LogType GetLogLineType(int globalLineNumber)
       {
-         return (LogType)_store.RetriveData(globalLineNumber).LogType;
+         return (LogType)GetTranslatedLine(globalLineNumber).LogType;
       }
       public LogFrame GetMasterFrame()
       {
