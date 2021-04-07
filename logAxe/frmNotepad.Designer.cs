@@ -1,6 +1,6 @@
 ﻿namespace logAxe
 {
-   partial class frmMainWindow
+   partial class frmNotepad
    {
       /// <summary>
       /// Required designer variable.
@@ -28,40 +28,37 @@
       /// </summary>
       private void InitializeComponent()
       {
-         System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(frmMainWindow));
          this.cntrlTextViewer1 = new logAxe.CntrlTextViewer();
          this.SuspendLayout();
          // 
          // cntrlTextViewer1
          // 
          this.cntrlTextViewer1.AllowDrop = true;
-         this.cntrlTextViewer1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
-         | System.Windows.Forms.AnchorStyles.Left)
-         | System.Windows.Forms.AnchorStyles.Right)));
+         this.cntrlTextViewer1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
          this.cntrlTextViewer1.BackColor = System.Drawing.Color.White;
+         this.cntrlTextViewer1.IsViewNotepad = true;
          this.cntrlTextViewer1.Location = new System.Drawing.Point(1, 0);
          this.cntrlTextViewer1.Name = "cntrlTextViewer1";
-         this.cntrlTextViewer1.Size = new System.Drawing.Size(1326, 456);
+         this.cntrlTextViewer1.Size = new System.Drawing.Size(1432, 552);
          this.cntrlTextViewer1.TabIndex = 0;
          // 
-         // frmMainWindow
+         // frmNotepad
          // 
-         this.AutoScaleDimensions = new System.Drawing.SizeF(120F, 120F);
-         this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
-         this.ClientSize = new System.Drawing.Size(1327, 456);
+         this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
+         this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+         this.ClientSize = new System.Drawing.Size(1432, 553);
          this.Controls.Add(this.cntrlTextViewer1);
-         this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
-         this.Name = "frmMainWindow";
-         this.Text = "logAxe 0.1";
-         this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.frmMainWindow_FormClosing);
+         this.Name = "frmNotepad";
+         this.Text = "logAxe - Notepad";
+         this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.frmNotepad_FormClosing);
          this.ResumeLayout(false);
 
       }
-
 
       #endregion
 
       private CntrlTextViewer cntrlTextViewer1;
    }
 }
-

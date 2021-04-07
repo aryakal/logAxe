@@ -10,7 +10,11 @@
       ResourceUsage,
       FileExportProgress,
       BroadCastGlobalLine,
-      NewUserConfiguration
+      NewUserConfiguration,
+      AddLineToNotepadEvent,
+      NotepadAddedOrRemoved,
+      NewMainFrmAddRemoved,
+      AwakeAllWindows,
    }
 
    public interface ILogAxeMessage

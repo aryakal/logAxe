@@ -58,13 +58,7 @@ namespace logAxeEngine.Storage
          _store = new GenericHugeStore<InterLogLine>(10, 30000);
          _dbString = stringStore;
          _dbTag = tagStore;
-         _mainFrame = new LogFrame(
-             0,
-             0,
-             null,
-             null,
-             null);
-
+         _mainFrame = LogFrame.GetEmptyView();
       }
 
       public void AddLogFile(LogFile logFile, int fileNumber)
@@ -91,12 +85,7 @@ namespace logAxeEngine.Storage
       }
       public void Clear()
       {
-         _mainFrame = new LogFrame(
-             0,
-             0,
-             null,
-             null,
-             null);
+         _mainFrame = LogFrame.GetEmptyView();
          _store.Clear();
          _dbString.Clear();
          _dbTag.Clear();
@@ -290,9 +279,6 @@ namespace logAxeEngine.Storage
          tskLog.Wait();
 
          _logger.LogDebug($"completed storing in indexes");
-
-
-
 
          //Lets create the frame here
          var logLineTypes = new LogType[totalLogLines];

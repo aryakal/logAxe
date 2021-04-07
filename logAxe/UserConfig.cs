@@ -15,6 +15,7 @@ namespace logAxe
 
       public int FontHeightPad { get; set; } = 2;
       public int PadBetweenCol { get; set; } = 4;
+      public int GlobalLineSelectedWidth { get; set; } = 4;
 
       public Color BackgroundColor { get; set; } = Color.White;
       public Color TableBackgroundColor { get; set; } = Color.White;
@@ -25,6 +26,7 @@ namespace logAxe
       public Color MsgWarningFontColor { get; set; } = Color.Orange;
       public Color MsgInfoFontColor { get; set; } = Color.Green;
       public Color GlobalLineSelected { get; set; } = Color.FromArgb(30, Color.Green);
+      
 
       [Browsable(false)]
       public Font TableHeaderFont { get; set; } = new Font("Consolas", 9.2F);

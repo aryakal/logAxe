@@ -8,7 +8,8 @@ using logAxeCommon;
 using logAxeEngine.Common;
 using logAxeEngine.Interfaces;
 using logAxeEngine.EventMessages;
-
+using System.Diagnostics;
+using System.Text;
 
 namespace logAxe
 {
@@ -44,6 +45,27 @@ namespace logAxe
          public int Y { get; set; }
       }
 
+      public string UniqueId { get; }
+      private bool _isNotepad = false;
+      public string NotepadName { get; set; }
+      public bool IsViewNotepad
+      {
+         get
+         {
+            return _isNotepad;
+         }
+         set
+         {
+            _isNotepad = value;
+            if (_isNotepad)
+            {
+               pnlFuture.Enabled = false;
+               TogglePanel();
+            }
+
+         }
+      }
+
       Task _backgroundWork;
       CancellationTokenSource _cancelToken;
       BlockingCollection<Work> _queueWork = new BlockingCollection<Work>();
@@ -52,11 +74,25 @@ namespace logAxe
       LogFrame _view;
       TableSkeleton _table;
       TermFilter CurrentFilter = new TermFilter();
-      long _totalDraws = 0;
       MessageExchangeHelper _msgHelper;
-      public string UniqueId { get; }
       MouseState _mouse = new MouseState();
+      long _totalDraws = 0;
       private frmLineData _lineInfoDlg = new frmLineData();
+      public Action<ILogAxeMessage> OnNewNotepadChange { get; set; }
+      public string _filterMessage = "";
+      public string FilterMessage
+      {
+         get
+         {
+            return _filterMessage;
+         }
+         private set
+         {
+            _filterMessage = value;
+            OnNewNotepadChange?.Invoke(new LogAxeGenericMessage() { MessageType = LogAxeMessageEnum.NewMainFrmAddRemoved });
+         }
+      }
+
 
       public CntrlTextViewer()
       {
@@ -76,7 +112,9 @@ namespace logAxe
 
             _msgHelper = new MessageExchangeHelper(ViewCommon.MessageBroker, this);
             _table = new TableSkeleton(masterPanel.Location, masterPanel.Size, _msgHelper);
-            _queueWork.Add(new Work(Work.WType.SetNewView, ViewCommon.Engine.GetMasterFrame()));
+
+            _queueWork.Add(new Work(Work.WType.SetNewView, LogFrame.GetEmptyView()));
+
             _cancelToken = new CancellationTokenSource();
             _backgroundWork = Task.Factory.StartNew(() =>
             {
@@ -85,6 +123,8 @@ namespace logAxe
 
             DoWork_RequestDraw("init");
             SetForeColor();
+            UpdateTotal(ViewCommon.Engine.GetStartInfo());
+            AddMenuItem();
          }
          else
          {
@@ -93,6 +133,14 @@ namespace logAxe
 
          _lineInfoDlg.MoveLine += MoveLine;
 
+      }
+
+      public void SetMasterView()
+      {
+         if (ViewCommon.Engine != null)
+         {
+            _queueWork.Add(new Work(Work.WType.SetNewView, ViewCommon.Engine.GetMasterFrame()));
+         }
       }
 
       private void MoveLine(int delta)
@@ -239,24 +287,38 @@ namespace logAxe
 
       private void contextMenu_Opening(object sender, System.ComponentModel.CancelEventArgs e)
       {
+         //Check if any line is selected in the view.
          var (isLineSlected, logLine) = _table.GetSelectedLine();
-         if (isLineSlected)
+         
+         //enable disable menu button based on line selected and if it is a notepad.
+         copyToNotepadToolStripMenuItem.Enabled = isLineSlected;
+         exportFileToolStripMenuItem.Enabled = isLineSlected;
+         filterByToolStripMenuItem.Enabled = (isLineSlected && !_isNotepad);
+         
+         if (filterByToolStripMenuItem.Enabled)
          {
             filterByThreadId.Text = $"ThreadId- {logLine.ThreadNo}";
             filterByCategoryId.Text = $"Category- {logLine.Category}";
             filterByProcId.Text = $"ProcessId- {logLine.ProcessId}";
          }
 
-         //Enable disable buttons.
-         exportFileToolStripMenuItem.Enabled = isLineSlected;
-         filterByToolStripMenuItem.Enabled = isLineSlected;
+         //which time format is currently selected.
+         showDefaultTimeToolStripMenuItem.Checked = _table.ShowTimeSelected == TableSkeleton.ShowTime.Default;
+         setStartTimeToolStripMenuItem.Checked = _table.ShowTimeSelected == TableSkeleton.ShowTime.StartTime;
+         setStartTimeToolStripMenuItem.Enabled = isLineSlected;
+         copyLinesToolStripMenuItem.Enabled = isLineSlected;
 
+         //All column and line show.
          showTableHeaderToolStripMenuItem.Checked = _table.ShowTableHeader;
          showLineNoToolStripMenuItem.Checked = _table["LineNo"].Visible;
          showProcIdToolStripMenuItem.Checked = _table["ProcId"].Visible;
          showThreadIdToolStripMenuItem.Checked = _table["ThId"].Visible;
          showCategoryToolStripMenuItem.Checked = _table["Category"].Visible;
 
+      }
+      private void copyLinesToolStripMenuItem_Click(object sender, EventArgs e)
+      {
+         CopyLinesToClipBoard();
       }
       private void showTableHeaderToolStripMenuItem_Click(object sender, EventArgs e)
       {
@@ -289,6 +351,36 @@ namespace logAxe
          var fld = new frmFileManager();
          fld.InitialSelectedFileNo = selectedFileIndex;
          fld.ShowDialog();
+      }
+      private void newNotepadToolStripMenuItem_Click(object sender, EventArgs e)
+      {
+         var notepadName = ((ToolStripMenuItem)sender).Text;
+         if (notepadName == "New Notepad Window")
+         {
+            notepadName = ViewCommon.OpenNewNotepad();
+         }
+
+         _msgHelper.PostMessage(
+            new AddLineToNotepadEvent()
+            {
+               NotebookName = notepadName,
+               GlobalLine = _table.GetGlobalLineIndexForSeletedLines()
+            });
+
+         AddMenuItem();
+      }
+      private void showDefaultTimeToolStripMenuItem_Click(object sender, EventArgs e)
+      {
+         _table.ShowTimeSelected = TableSkeleton.ShowTime.Default;
+         DoWork_RequestDrawWithFlag("showDefaultTimeToolStripMenuItem");
+      }
+
+      private void setStartTimeToolStripMenuItem_Click(object sender, EventArgs e)
+      {
+         var (_, logLine) = _table.GetSelectedLine();
+         _table.ShowTimeSelected = TableSkeleton.ShowTime.StartTime;
+         _table.ShowTime_Default_StartTime = logLine.TimeStamp;
+         DoWork_RequestDrawWithFlag("setStartTimeToolStripMenuItem");
       }
 
       #endregion
@@ -373,19 +465,17 @@ namespace logAxe
       {
          switch (keyData)
          {
+            case (Keys.Control | Keys.F):
             case Keys.F3:
                togge_filter_screen();
                break;
             case Keys.NumLock:
-               pnlFuture.Visible = !pnlFuture.Visible;
-               if (pnlFuture.Visible)
-               {
-                  masterPanel.Width -= pnlFuture.Width;
-               }
-               else
-               {
-                  masterPanel.Width += pnlFuture.Width;
-               }
+               if (!_isNotepad)
+                  TogglePanel();
+               break;
+            case Keys.Escape:
+               if (!_isNotepad)
+                  _msgHelper.PostMessage(new LogAxeGenericMessage() { MessageType = LogAxeMessageEnum.AwakeAllWindows });
                break;
          }
 
@@ -427,6 +517,10 @@ namespace logAxe
                _table.Dirty = true;
                DoWork_RequestDraw($"ProcessCmdKey, {keyData}");
                break;
+            case Keys.F10:
+               _table["TimeStamp"].Visible = !_table["TimeStamp"].Visible;               
+               DoWork_RequestDraw($"ProcessCmdKey, {keyData}");
+               break;
             case Keys.PageDown:
                _table.GotoNextPage();
                DoWork_RequestDraw($"ProcessCmdKey, {keyData}");
@@ -443,6 +537,10 @@ namespace logAxe
                _table.MoveLine(1);
                DoWork_RequestDraw($"ProcessCmdKey, {keyData}");
                break;
+
+            case (Keys.Control | Keys.C):
+               CopyLinesToClipBoard();
+               break;
             default:
                return base.ProcessCmdKey(ref msg, keyData);
          }
@@ -452,6 +550,30 @@ namespace logAxe
       {
          var (lineNo, totalLines, lineInfo) = _table.GetCurrentSelectedLineInfo();
          _lineInfoDlg.SetCurrentLine(lineNo, totalLines, lineInfo);
+      }
+
+      private void CopyLinesToClipBoard()
+      {
+         var lst = _table.GetAllSelectedLogLines();
+         var str = new StringBuilder();
+         foreach (var line in lst)
+         {
+            str.Append($"{line.LogType.ToString().Substring(0, 1)}, {line.TimeStamp.ToString("yy-MM-dd HH:mm:ss.fff")}, {line.Msg.Replace("\n", "")}{Environment.NewLine}");
+         }
+         Clipboard.SetText(str.ToString());
+      }
+
+      private void TogglePanel()
+      {
+         pnlFuture.Visible = !pnlFuture.Visible;
+         if (pnlFuture.Visible)
+         {
+            masterPanel.Width -= pnlFuture.Width;
+         }
+         else
+         {
+            masterPanel.Width += pnlFuture.Width;
+         }
       }
 
       private void btnManageFile_Click(object sender, EventArgs e)
@@ -510,22 +632,14 @@ namespace logAxe
             if (filter.IsMasterFilter)
             {
                _queueWork.Add(new Work(Work.WType.SetNewView, ViewCommon.Engine.GetMasterFrame()));
+               FilterMessage = "";
             }
             else if (filter.IsValidFilter)
             {
                var view = ViewCommon.Engine.Filter(filter);
-                  //var timeElapsed = DateTime.Now - statTime;
-                  ////masterPanel.Invoke(new Action(() =>
-                  ////{
-                  ////    //lblGeneralTextLbl.Text = "SearchTime";
-                  ////    //lblGeneralText.Text = $"{timeElapsed.TotalSeconds:.##} s";
-                  ////}));
-
-                  _queueWork.Add(new Work(Work.WType.SetNewView, view));
+               _queueWork.Add(new Work(Work.WType.SetNewView, view));
+               FilterMessage = "Filter applied";
             }
-
-
-
          });
 
       }
@@ -565,19 +679,20 @@ namespace logAxe
                   break;
 
                case Work.WType.SetNewView:
-                  ////Utils.LogInfo($"dowork : {work.Type}");
                   SetView((LogFrame)work.RealWork);
                   break;
 
                case Work.WType.Draw:
+                  NamedLogger.PublishLogs = true;
                   Interlocked.Decrement(ref _totalDraws);
                   if (Interlocked.Read(ref _totalDraws) > 2)
                   {
-
                      continue;
                   }
-
+                  var stp = new Stopwatch(); stp.Start();
                   DoWork_Draw((string)work.RealWork);
+                  stp.Stop();
+                  Debug.WriteLine($" {stp.Elapsed}");
                   break;
 
             }
@@ -590,7 +705,8 @@ namespace logAxe
             switch (message.MessageType)
             {
                case LogAxeMessageEnum.NewViewAnnouncement:
-                  SetView(ViewCommon.Engine.GetMasterFrame());
+                  if (!_isNotepad)
+                     SetView(ViewCommon.Engine.GetMasterFrame());
                   break;
                case LogAxeMessageEnum.FileParseProgress:
                   var fpPrg = (FileParseProgressEvent)message;
@@ -606,9 +722,9 @@ namespace logAxe
 
                          lblParsingUpdate.Text = Utils.Percentage(fpPrg.TotalFileLoadedCount, fpPrg.TotalFileCount);
                          lblIndexingUpdate.Text = Utils.Percentage(fpPrg.TotalFileParsedCount, fpPrg.TotalFileCount);
-                         lblAppMemSize.Text = Utils.GetHumanSize(System.Diagnostics.Process.GetCurrentProcess().PrivateMemorySize64, true);
-                         lblTotalFiles.Text = $"{fpPrg.TotalFileLoadedCount} of {fpPrg.TotalFileCount}";
-                         lblFileSize.Text = $"{Utils.GetHumanSize(fpPrg.TotalFileSizeLoaded)}";
+
+                         UpdateTotal(fpPrg);
+
                       }));
                   break;
 
@@ -627,20 +743,65 @@ namespace logAxe
                   break;
                case LogAxeMessageEnum.BroadCastGlobalLine:
                   {
-                     var globalLine = (CurrentGlobalLine)message;
-                     var lineNo = _view.GetGlobalLine(globalLine.GlobalLine);
-                     _table.SetGlobalLine(lineNo);
-                     //Utils.LogDebug($" {ClientID} = {globalLine.GlobalLine} -> {lineNo}");
-                     DoWork_RequestDraw($"MessageType.BroadCastGlobalLine");
+                     // We got the global line now lets search in the local view.
+                     // Either we will have an empty view (because this view does not have any line
+                     if (!_view.IsEmpty)
+                     {
+                        var lineNo = _view.GetGlobalLine(((CurrentGlobalLine)message).GlobalLine);
+                        _table.SetGlobalLine(lineNo);
+                        DoWork_RequestDraw($"MessageType.BroadCastGlobalLine");
+                     }
+                  }
+                  break;
+               case LogAxeMessageEnum.NotepadAddedOrRemoved:
+                  masterPanel.Invoke(new Action(() =>
+                  {
+                     AddMenuItem();
+                  }));
+                  break;
+               case LogAxeMessageEnum.AddLineToNotepadEvent:                  
+                  if (_isNotepad)
+                  {
+                     var notepadEvent = (AddLineToNotepadEvent)message;
+                     if (notepadEvent.NotebookName == NotepadName)
+                     {  
+                        _view.AddGlobalLines(notepadEvent.GlobalLine);
+                        SetView(_view);
+                        DoWork_RequestDraw($"LogAxeMessageEnum.AddLineToNotepadEvent");
+                     }
+
                   }
                   break;
 
+               case LogAxeMessageEnum.NewMainFrmAddRemoved:
+               case LogAxeMessageEnum.AwakeAllWindows:
+                  OnNewNotepadChange?.Invoke(message);
+                  break;
             }
          }
          catch (Exception ex)
          {
             _logger.LogError(ex.ToString());
          }
+      }
+      private void AddMenuItem()
+      {
+         copyToNotepadToolStripMenuItem.DropDownItems.Clear();
+         var names = ViewCommon.GetAllNotepadNames();
+         names.Add("New Notepad Window");
+         foreach (var name in names)
+         {
+            ToolStripMenuItem item = new ToolStripMenuItem();
+            item.Text = name;
+            item.Click += new EventHandler(newNotepadToolStripMenuItem_Click);
+            copyToNotepadToolStripMenuItem.DropDownItems.Add(item);
+         }
+      }      
+      private void UpdateTotal(FileParseProgressEvent fpPrg)
+      {
+         lblAppMemSize.Text = Utils.GetHumanSize(System.Diagnostics.Process.GetCurrentProcess().PrivateMemorySize64, true);
+         lblTotalFiles.Text = $"{fpPrg.TotalFileLoadedCount} of {fpPrg.TotalFileCount}";
+         lblFileSize.Text = $"{Utils.GetHumanSize(fpPrg.TotalFileSizeLoaded)}";
       }
       private void DoWork_DrawScrollBar(TableSkeleton table)
       {
@@ -692,14 +853,21 @@ namespace logAxe
                _table.Dirty = false;
             }
 
+            //_newCanvas.gc.Clear(_userConfig.BackgroundColor);
+            //_newCanvas.gc.FillRectangle(new SolidBrush(_userConfig.TableBackgroundColor),
+            //    _table.Location.X,
+            //    _table.Location.Y,
+            //    _table.Size.Width,
+            //    _table.Size.Height);
+
             _newCanvas.gc.Clear(_userConfig.BackgroundColor);
+            //using (TextureBrush brush = new TextureBrush(Properties.Resources.background, System.Drawing.Drawing2D.WrapMode.Tile))
+            //{
+            //   _newCanvas.gc.FillRectangle(brush, 0, 0, _newCanvas.bmp.Width, _newCanvas.bmp.Height);
+            //}
 
             //Draw table
-            _newCanvas.gc.FillRectangle(new SolidBrush(_userConfig.TableBackgroundColor),
-                _table.Location.X,
-                _table.Location.Y,
-                _table.Size.Width,
-                _table.Size.Height);
+
 
             if (_userConfig.ShowTableHeader)
             {
@@ -714,6 +882,12 @@ namespace logAxe
                    _userConfig.DebugUI ?
                    $"-{DateTime.Now.ToString(_userConfig.Column1TimeStampFormat)} - {Interlocked.Read(ref _totalDraws)} - {drawType}" :
                    "";
+
+               var (enbled, timeDiff) = _table.GetSelectedLineDiff();
+               if (enbled)
+               {
+                  addTextToMsg += $"- {timeDiff}";
+               }
 
                for (int ndx = 0; ndx < _table.TotalColumns; ndx++)
                {
@@ -770,6 +944,7 @@ namespace logAxe
                var currentLine = _table.CurrentDataLine;
                string prevTime = "";
 
+               //Draw the gobal line indicator first.
                if (_table.ShowGlobalLine)
                {
                   var line = Math.Abs(_table.CurrentGlobalLine);
@@ -779,7 +954,7 @@ namespace logAxe
                      {
                         float rowYPos = (_table.RowsHeight * (((line - 1) - (_table.CurrentDataLine)) + 1)) + (_table.Location.Y + _table.OffsetStringData);
                         _newCanvas.gc.DrawLine(
-                            new Pen(_userConfig.GlobalLineSelected, 2),
+                            new Pen(_userConfig.GlobalLineSelected, _userConfig.GlobalLineSelectedWidth),
                             0,
                             rowYPos,
                             _table.Size.Width,
@@ -834,7 +1009,11 @@ namespace logAxe
                               break;
 
                            case "TimeStamp":
-                              string newTime = $"{rowData.TimeStamp.ToString(_userConfig.Column1TimeStampFormat)}";
+                              
+                              string newTime = _table.ShowTimeSelected == TableSkeleton.ShowTime.Default ?
+                                 $"{rowData.TimeStamp.ToString(_userConfig.Column1TimeStampFormat)}" :
+                                 $"{(rowData.TimeStamp -_table.ShowTime_Default_StartTime)}"
+                                 ;
                               if (prevTime != newTime)
                               {
                                  prevTime = newTime;
@@ -872,12 +1051,14 @@ namespace logAxe
                                   rowYPos);
                               break;
 
-                           //case "ImageNo":
-                           //    if (rowData.LogType == LogType.Error)
-                           //    {
-                           //        _newCanvas.gc.DrawImage(ViewCommon.Stack, _table.Location.X + col.StartLoc, rowYPos);
-                           //    }
-                           //    break;
+                           case "ImageNo":
+                              if (rowData.StackTraceId != LogLine.INVALID)
+                              {
+                                 _newCanvas.gc.DrawImage(Properties.Resources.stack, 
+                                    _table.Location.X + col.StartLoc, 
+                                    rowYPos + 2);
+                              }
+                              break;
 
                            case "Message":
 
@@ -918,7 +1099,8 @@ namespace logAxe
                {
                   SetInfoDialogData();
                }
-               lblAppMemSize.Text = Utils.GetHumanSize(System.Diagnostics.Process.GetCurrentProcess().PrivateMemorySize64, true);
+
+               UpdateTotal(ViewCommon.Engine.GetStartInfo());
             }));
 
          }
@@ -985,11 +1167,12 @@ namespace logAxe
       {
          ViewCommon.Engine.Clear();
       }
-
       private void lblClearFilter_Click(object sender, EventArgs e)
       {
          //_queueWork.Add(new Work(Work.WType.SetNewView, ViewCommon.Engine.GetMasterFrame()));
          ShowFilterView(new TermFilter());
       }
+
+      
    }
 }

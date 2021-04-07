@@ -30,16 +30,13 @@ namespace logAxe
 
       private void btnExport_Click(object sender, EventArgs e)
       {
-
-
          if (lstBoxFileNames.SelectedItems.Count == 0) return;
 
-
-         var lst = new List<string>();
+         var lst = new List<LogFileInfo>();
          {
             foreach (var item in lstBoxFileNames.SelectedItems)
             {
-               lst.Add(((LogFileInfo)item).Key);
+               lst.Add((LogFileInfo)item);
             }
          }
 

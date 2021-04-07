@@ -56,6 +56,7 @@
     <Compile Include="Common\SystemIO.cs" />
     <Compile Include="Common\TermFilter.cs" />
     <Compile Include="Common\FileObjectHelper.cs" />
+    <Compile Include="EventMessages\AddLineToNotepadEvent.cs" />
     <Compile Include="EventMessages\CurrentGlobalLine.cs" />
     <Compile Include="Engines\LogAxeEngineManager.cs" />
     <Compile Include="Engines\LogMessageEngine.cs" />

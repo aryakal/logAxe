@@ -189,12 +189,17 @@ namespace logAxe
       public int CurrentDataLine
       {
          get
-         {
-            return _currentLine;
+         {           
+            return _currentSkeletonLine;
          }
          set
          {
-            _currentLine = value;
+            if (value < 0)
+            {
+               _currentSkeletonLine = 0;
+            }
+            else
+               _currentSkeletonLine = value;
             SetPageStats();
 
          }
@@ -219,9 +224,16 @@ namespace logAxe
       public LogFrame ViewFrame { get; set; }
       public bool ShowTableHeader { get; set; }
       public SelectedItems SelectedLine { get; set; } = new SelectedItems();
+      public enum ShowTime { 
+         Default,
+         StartTime
+      }
+
+      public ShowTime ShowTimeSelected { get; set; } = ShowTime.Default;
+      public DateTime ShowTime_Default_StartTime { get; set; } = DateTime.Now;
 
       private MessageExchangeHelper _msgHelper;
-      private int _currentLine = 0;
+      private int _currentSkeletonLine = 0;
 
       public TableSkeleton(PointF point, SizeF size, MessageExchangeHelper msgHelper) : base(point, size)
       {
@@ -232,7 +244,7 @@ namespace logAxe
          var config = ViewCommon.UserConfig;
 
          ShowTableHeader = config.ShowTableHeader;
-         this["LineNo"].Visible = config.ShowLineNo;
+         //this["LineNo"].Visible = config.ShowLineNo;
 
          Dimensions = new RectangleF(Location, size);
          //SelectedLines = new bool[ViewFrame.TotalLogLines];
@@ -444,6 +456,48 @@ namespace logAxe
                  ViewFrame.TranslateLine(
                      SelectedLine.LastSelected)));
       }
+      
+      public (bool, TimeSpan) GetSelectedLineDiff()
+      {
+         if (SelectedLine.TotalSelected < 2 || SelectedLine.LastSelected == LogLine.INVALID)
+            return (false, new TimeSpan(0));
+         var lines = SelectedLine.GetSelectedLines();
+         var first = ViewCommon.Engine.GetLogLine(ViewFrame.TranslateLine(lines[0]));
+         var last = ViewCommon.Engine.GetLogLine(ViewFrame.TranslateLine(lines[lines.Length-1]));
+         
+         return (true, last.TimeStamp - first.TimeStamp);
+
+      }
+
+      public List<LogLine> GetAllSelectedLogLines()
+      {
+         var lst = new List<LogLine>();
+
+         if (SelectedLine.TotalSelected == 0 || SelectedLine.LastSelected == LogLine.INVALID)
+            return lst;
+         
+         foreach (var line in SelectedLine.GetSelectedLines())
+         {
+            lst.Add(ViewCommon.Engine.GetLogLine(ViewFrame.TranslateLine(line)));
+         }
+
+         return lst;
+
+      }
+      /// <summary>
+      /// Gets the index of the selected files on the view.
+      /// </summary>
+      /// <returns></returns>
+      public int[] GetGlobalLineIndexForSeletedLines()
+      {
+         var globalLine = new List<int>();
+         var selectedLines = SelectedLine.GetSelectedLines();
+         foreach (var line in selectedLines)
+         {
+            globalLine.Add(ViewFrame.TranslateLine(line));
+         }
+         return globalLine.ToArray();
+      }
       /// <summary>
       /// Gets the index of the selected files on the view.
       /// </summary>
@@ -489,7 +543,7 @@ namespace logAxe
          {
             var extraPage = TotalDataLines % RowsPerPage;
             TotalPages = (int)(TotalDataLines / RowsPerPage) + (extraPage > 0 ? 1 : 0);
-            CurrentPage = (int)(_currentLine / RowsPerPage);
+            CurrentPage = (int)(_currentSkeletonLine / RowsPerPage);
             //CurrentPage += 1;
          }
 

@@ -22,9 +22,10 @@ namespace logAxeEngine.Common
       private int[] Data { get; set; }
       private int[] LogTypeSizes { get; set; } = new int[4];
       public LogType[] LogTypes { get; set; }
+      public bool IsEmpty { get; private set; }
       public int LogTypeLength(LogType logType)
       {
-         return LogTypeSizes[(int)logType];
+         return LogTypeSizes.Length != 0 ? LogTypeSizes[(int)logType]: 0;
       }
 
       private bool _isMainView;
@@ -80,11 +81,36 @@ namespace logAxeEngine.Common
 
       public int GetGlobalLine(int line)
       {
-         if (Data == null)
+         //if the entry point is checked we donot need to check this again here.
+         //if (IsEmpty)
+         //{
+         //   return LogLine.INVALID;
+         //}
+
+         return Data != null ? Array.BinarySearch(Data, line) : line;         
+      }
+
+      public static LogFrame GetEmptyView()
+      {
+         return new LogFrame(
+             0,
+             0,
+             new LogType[0],
+             new int[0],
+             new int[0])
          {
-            return line;
-         }
-         return Array.BinarySearch(Data, line);
+            IsEmpty = true
+         };
+      }
+
+      public void AddGlobalLines(int[] lines)
+      {
+         var lst = Data.ToList();
+         lst.AddRange(lines);
+         Data = lst.Distinct().ToArray();
+         Array.Sort(Data);
+         TotalLogLines = Data.Length;
+         IsEmpty = TotalLogLines == 0;
       }
    }
 }

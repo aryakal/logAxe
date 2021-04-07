@@ -26,7 +26,7 @@ namespace logAxeEngine.Common
                 Log("D", _name, msg, DefaultColor);
         }
 
-        public void LogDebugPrg(string msg)
+        public void LogDebugProgress(string msg)
         {
             if (PublishDebugLogs)
                 Log("D", _name, msg, DefaultColor, true);
