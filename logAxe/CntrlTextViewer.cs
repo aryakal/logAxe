@@ -689,10 +689,10 @@ namespace logAxe
                   {
                      continue;
                   }
-                  var stp = new Stopwatch(); stp.Start();
+                  //var stp = new Stopwatch(); stp.Start();
                   DoWork_Draw((string)work.RealWork);
-                  stp.Stop();
-                  Debug.WriteLine($" {stp.Elapsed}");
+                  //stp.Stop();
+                  //Debug.WriteLine($" {stp.Elapsed}");
                   break;
 
             }
