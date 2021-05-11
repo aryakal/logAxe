@@ -25,20 +25,20 @@ namespace logAxeEngine.Common
             {
                if (Path.GetExtension(path).ToLower() == ".zip")
                {
-                  var archive = ZipFile.OpenRead(path);
-                  foreach (var entry in archive.Entries)
-                  {
-                     if (entry.FullName.EndsWith("/"))
-                        continue;
-
-                     lst.Add(new FileObject()
+                  using (var archive = ZipFile.OpenRead(path))
+                  { 
+                     foreach (var entry in archive.Entries)
                      {
-                        Archive = archive,
-                        FileName = Path.GetFileName(entry.FullName),
-                        FilePath = entry.FullName,
-                        FileSize = entry.Length                        
-                        
-                     });
+                        if (entry.FullName.EndsWith("/"))
+                           continue;
+
+                        lst.Add(new FileObject()
+                        {                           
+                           FileName = Path.GetFileName(entry.FullName),
+                           FilePath = entry.FullName,
+                           FileSize = entry.Length
+                        });
+                     }
                   }
                }
                else
@@ -61,11 +61,14 @@ namespace logAxeEngine.Common
 
          if (fileObj.IsZipFile)
          {
-            using (var stream = fileObj.Archive.GetEntry(fileObj.FilePath).Open())
+            using (var archive = ZipFile.OpenRead(fileObj.ZipArchivePath))
             {
-               data = new byte[fileObj.FileSize];
-               stream.Read(data, 0, (int)fileObj.FileSize);
-               stream.Close();
+               using (var stream = archive.GetEntry(fileObj.FilePath).Open())
+               {
+                  data = new byte[fileObj.FileSize];
+                  stream.Read(data, 0, (int)fileObj.FileSize);
+                  stream.Close();
+               }
             }
          }
          else

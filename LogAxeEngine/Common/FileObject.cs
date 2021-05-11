@@ -10,7 +10,7 @@ namespace logAxeEngine.Common
       public string FilePath { get; set; }
       public long FileSize { get; set; }
       public ILogParser LogParser { get; set; }
-      public bool IsZipFile => Archive != null;
-      public ZipArchive Archive { get; set; }
+      public bool IsZipFile => ZipArchivePath != "";
+      public string ZipArchivePath { get; set; } = "";
    }
 }
