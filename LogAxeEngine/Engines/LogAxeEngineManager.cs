@@ -26,7 +26,8 @@ namespace logAxeEngine.Engines
       private int UniqueFileId { get; set; } = LogLine.INVALID;
       private MessageExchangeHelper _messenger;
       private FileParseProgressEvent _fileProgressStat;
-      
+      SemaphoreSlim _lockAddition = new SemaphoreSlim(1, 1);
+
       public LogAxeEngineManager(ISystemIO io = null)
       {
          _fileProgressStat = new FileParseProgressEvent();
@@ -58,7 +59,7 @@ namespace logAxeEngine.Engines
          _fileProgressStat.TotalFileLoadedCount = 0;
          _fileProgressStat.TotalFileParsedCount = 0;
          _fileProgressStat.TotalFileRejectedCount = 0;
-         _fileProgressStat.TotalFileSizeLoaded = 0;        
+         _fileProgressStat.TotalFileSizeLoaded = 0;
 
          _storeMsgStack = new StorageStringDB();
          _storeTag = new StorageStringDB();
@@ -174,11 +175,16 @@ namespace logAxeEngine.Engines
              "THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE." +
              _pluginManger.GetAllPluginsInfo();
       }
-      public FileParseProgressEvent GetStartInfo() 
-      {       
+      public FileParseProgressEvent GetStartInfo()
+      {
          return _fileProgressStat;
       }
 
+      /// <summary>
+      /// 
+      /// </summary>
+      /// <param name="paths"></param>
+      /// <param name="useParallelTasks"></param>
       private void ProcessFiles(string[] paths, bool useParallelTasks = true)
       {
          var lst = new List<FileObject>();
@@ -225,9 +231,10 @@ namespace logAxeEngine.Engines
          fileProgress.ParseComplete = true;
          _messenger.PostMessage(fileProgress);
       }
-
-      SemaphoreSlim _lockAddition = new SemaphoreSlim(1, 1);
-
+      /// <summary>
+      /// 
+      /// </summary>
+      /// <param name="fileObject"></param>
       private void AddFileToIndex(FileObject fileObject)
       {
          var logFile = new LogFile(
@@ -237,7 +244,7 @@ namespace logAxeEngine.Engines
          {
             FileId = fileObject.UniqueFileNo
          };
-         
+
          fileObject.LogParser.ParseFile(logFile);
 
          _lockAddition.Wait();
@@ -247,30 +254,16 @@ namespace logAxeEngine.Engines
             _fileProgressStat.TotalFileLoadedCount++;
             _database.AddLogFile(logFile, logFile.FileId);
             _fileProgressStat.TotalFileParsedCount++;
-            _messenger.PostMessage(_fileProgressStat);
          }
          catch
          {
          }
-         finally 
+         finally
          {
             _lockAddition.Release();
          }
 
          logFile.Clear();
-         
-
-         
       }
-
-      //private CurrentResourceUsage GetCurrentUsage()
-      //{
-      //   return new CurrentResourceUsage()
-      //   {
-      //      //CurrentFileTotalSize = Utils.GetHumanSize(_totalFileSizeInSystem, true),
-      //      TotalAppMemUsage = Utils.GetHumanSize(System.Diagnostics.Process.GetCurrentProcess().PrivateMemorySize64, true),
-      //      //TotalFiles = $"{_totalNoofFilesParsed.ToString()} of {_allFileInfo.Count.ToString()}" 
-      //   };
-      //}
    }
 }

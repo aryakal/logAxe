@@ -13,8 +13,6 @@ namespace logAxeEngine.Storage
 
    public sealed class StorageMetaDatabase : IStorageDataBase
    {
-      private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
-
       private struct InterLogLine
       {
          public long TimeStamp;
@@ -25,31 +23,25 @@ namespace logAxeEngine.Storage
          public int LineNumber;
          public byte LogType;
       }
-
       private struct TempInterLogLine
       {
          public long TimeStamp;
          public int InternalGlobalLine;
       }
 
-      private GenericHugeStore<InterLogLine> _store;
-
-      int[] _globalLogLines;
+      private NamedLogger _logger = new NamedLogger("metaDb");
+      private GenericHugeStore<InterLogLine> _store;      
       private bool _isOptmized;
-
+      private int[] _globalLogLines;
       private int[][] _indexMessages;
       private int[][] _indexTags;
       private int[][] _indexLogType;
 
       private IStorageString _dbString;
-      private IStorageString _dbTag;
-      private const int BookIndexSize = 10;
-
-      LogFrame _mainFrame;
+      private IStorageString _dbTag;      
+      private LogFrame _mainFrame;
+      
       public int TotalLogLines => _store.Count;
-
-      private NamedLogger _logger = new NamedLogger("metaDb");
-
       public StorageMetaDatabase(
           IStorageString stringStore,
           IStorageString tagStore,
@@ -60,7 +52,6 @@ namespace logAxeEngine.Storage
          _dbTag = tagStore;
          _mainFrame = LogFrame.GetEmptyView();
       }
-
       public void AddLogFile(LogFile logFile, int fileNumber)
       {
          _isOptmized = false;
@@ -116,14 +107,14 @@ namespace logAxeEngine.Storage
       }
       public void OptimizeData()
       {
-         if (_isOptmized) return;
-         var totalLogLines = _store.Count;
+         if (_isOptmized) return;         
+
          _dbString.OptimizeData();
          _dbTag.OptimizeData();
+
+         var totalLogLines = _store.Count;
          _logger.LogDebug($"Indexing Lines: {_store.Count}, Strings: {_dbString.Count}, Tags: {_dbTag.Count}");
-
          _globalLogLines = new int[totalLogLines];
-
          var tempSort = new TempInterLogLine[totalLogLines];
          Parallel.For(0, totalLogLines, ndx =>
          {
@@ -131,172 +122,20 @@ namespace logAxeEngine.Storage
             tempSort[ndx].TimeStamp = st.TimeStamp;
             tempSort[ndx].InternalGlobalLine = ndx;
          });
-         //The main sort of the whole application.
-         tempSort = tempSort.OrderBy(stamp => stamp.TimeStamp).ToArray();
+
+         //TODO : - improve time to optimze time.         
+         //tempSort = tempSort.OrderBy(stamp => stamp.TimeStamp).ToArray(); // bad idea with huge array it will crash.q
+         Array.Sort(tempSort, delegate (TempInterLogLine x, TempInterLogLine y) { return x.TimeStamp.CompareTo(y.TimeStamp); });
 
          Parallel.For(0, totalLogLines, ndx =>
          {
             _globalLogLines[ndx] = tempSort[ndx].InternalGlobalLine;
          });
          tempSort = null;
+
          CreateSortedIndexes();
+
          _isOptmized = true;
-      }
-
-      private struct TempIndexId
-      {
-         public int MsgId;
-         public int TagId;
-         public int LogType;
-         public int InternalGlobalLine;
-      }
-
-      private void CreateSortedIndexes3()
-      {
-         var totalLogLines = _store.Count;
-         var tempMaster = new TempIndexId[totalLogLines];
-         //we can reference the original line not traslated if requred.
-         Parallel.For(0, totalLogLines, ndx =>
-         {
-            var st = GetTranslatedLine(ndx);
-            tempMaster[ndx].MsgId = st.MsgId;
-            tempMaster[ndx].TagId = st.TagId;
-            tempMaster[ndx].LogType = st.LogType;
-            tempMaster[ndx].InternalGlobalLine = ndx;
-         });
-
-         var sortedMessage = tempMaster.OrderBy(stamp => stamp.MsgId).ToArray();
-         var sortedTag = tempMaster.OrderBy(stamp => stamp.TagId).ToArray();
-         var sortedLogType = tempMaster.OrderBy(stamp => stamp.LogType).ToArray();
-
-
-         //how to store
-         //var currentId = 0;
-         //var length = 0;
-         //var _messages = new int[totalLogLines];
-         //var _messagesLength = new int[totalLogLines];
-         //for (var ndx = 0; ndx < tempMaster.Length; ndx++)
-         //{
-         //    var st = tempMaster[ndx];
-         //    _logger.LogDebug($"line {st.InternalGlobalLine}, {st.MsgId}");
-         //}
-      }
-
-      private void CreateSortedIndexes2()
-      {
-         var totalLogLines = _store.Count;
-         var sortedMessages = new int[_dbString.Count + 10];
-         var sortedTags = new int[_dbTag.Count + 10];
-         var sortedLogType = new int[4];
-
-         Parallel.For(0, totalLogLines, ndx =>
-         {
-            var st = GetTranslatedLine(ndx);
-            Interlocked.Increment(ref sortedMessages[st.MsgId]);
-            Interlocked.Increment(ref sortedTags[st.TagId]);
-            Interlocked.Increment(ref sortedLogType[st.LogType]);
-         });
-
-         _indexMessages = CreateEmptyIntArray(sortedMessages);
-         _indexLogType = CreateEmptyIntArray(sortedLogType);
-         _indexTags = CreateEmptyIntArray(sortedTags);
-
-         _indexLogType = new int[sortedMessages.Length][];
-         Parallel.For(0, totalLogLines, ndx =>
-         {
-            var st = GetTranslatedLine(ndx);
-            Interlocked.Increment(ref sortedMessages[st.MsgId]);
-            Interlocked.Increment(ref sortedTags[st.TagId]);
-            Interlocked.Increment(ref sortedLogType[st.LogType]);
-         });
-      }
-      private int[][] CreateEmptyIntArray(int[] input)
-      {
-         var ret = new int[input.Length][];
-         for (var ndx = 0; ndx < input.Length; ndx++)
-         {
-            ret[ndx] = new int[input[ndx]];
-         }
-         return ret;
-      }
-      private void CreateSortedIndexes()
-      {
-         //TODO : String id is  not matching with index of storage.
-
-
-         /*
-          *  2 | 3 | 2 |
-          * 2 - 0, 2
-          * 3 - 1
-          */
-
-
-         var totalLogLines = _store.Count;
-         var sortedMessages = HelperCreateEmptyIndex(_dbString.Count + 10);
-         var sortedTags = HelperCreateEmptyIndex(_dbTag.Count + 10);
-         var sortedLogType = HelperCreateEmptyIndex(4);
-         _logger.LogDebug($"Created the lists");
-         for (var ndx = 0; ndx < totalLogLines; ndx++)
-         {
-            var st = GetTranslatedLine(ndx);
-            try
-            {
-               sortedMessages[st.MsgId].Add(ndx);
-               if (st.TagId != LogLine.INVALID)
-                  sortedTags[st.TagId].Add(ndx);
-               sortedLogType[st.LogType].Add(ndx);
-            }
-            catch
-            {
-               _logger.LogError($"Index {ndx}, {st.MsgId}, {st.TagId}, {st.LogType}");
-               throw;
-            }
-         }
-
-         _logger.LogDebug($"stored in the lists");
-
-         //_indexMessages = HelperCreateIndex(sortedMessages);
-         //_indexLogType = HelperCreateIndex(sortedLogType);
-         //_indexTags = HelperCreateIndex(sortedTags);
-
-         var tskMsg = Task.Run(() =>
-         {
-            _indexMessages = HelperCreateIndex(sortedMessages);
-         });
-
-         var tskTag = Task.Run(() =>
-         {
-            _indexTags = HelperCreateIndex(sortedTags);
-         });
-
-         var tskLog = Task.Run(() =>
-         {
-            _indexLogType = HelperCreateIndex(sortedLogType);
-         });
-
-         tskMsg.Wait();
-         tskTag.Wait();
-         tskLog.Wait();
-
-         _logger.LogDebug($"completed storing in indexes");
-
-         //Lets create the frame here
-         var logLineTypes = new LogType[totalLogLines];
-         var logLineLength = new int[4];
-         Parallel.For(0, totalLogLines, ndx =>
-         {
-            var type = GetLogLineType(ndx);
-            logLineTypes[ndx] = type;
-            Interlocked.Increment(ref logLineLength[(byte)type]);
-         });
-
-         _mainFrame = new LogFrame(
-            totalLogLines,
-            totalLogLines,
-            logLineTypes,
-            logLineLength,
-            null);
-
       }
       public LogFrame Filter(TermFilter term)
       {
@@ -412,6 +251,92 @@ namespace logAxeEngine.Storage
 
       }
 
+      private struct TempIndexId
+      {
+         public int MsgId;
+         public int TagId;
+         public int LogType;
+         public int InternalGlobalLine;
+      }      
+      private void CreateSortedIndexes()
+      {
+         //TODO : String id is  not matching with index of storage.
+
+
+         /*
+          *  2 | 3 | 2 |
+          * 2 - 0, 2
+          * 3 - 1
+          */
+
+
+         var totalLogLines = _store.Count;
+         var sortedMessages = HelperCreateEmptyIndex(_dbString.Count + 10);
+         var sortedTags = HelperCreateEmptyIndex(_dbTag.Count + 10);
+         var sortedLogType = HelperCreateEmptyIndex(4);
+         _logger.LogDebug($"Created the lists");
+         for (var ndx = 0; ndx < totalLogLines; ndx++)
+         {
+            var st = GetTranslatedLine(ndx);
+            try
+            {
+               sortedMessages[st.MsgId].Add(ndx);
+               if (st.TagId != LogLine.INVALID)
+                  sortedTags[st.TagId].Add(ndx);
+               sortedLogType[st.LogType].Add(ndx);
+            }
+            catch
+            {
+               _logger.LogError($"Index {ndx}, {st.MsgId}, {st.TagId}, {st.LogType}");
+               throw;
+            }
+         }
+
+         _logger.LogDebug($"stored in the lists");
+
+         //_indexMessages = HelperCreateIndex(sortedMessages);
+         //_indexLogType = HelperCreateIndex(sortedLogType);
+         //_indexTags = HelperCreateIndex(sortedTags);
+
+         var tskMsg = Task.Run(() =>
+         {
+            _indexMessages = HelperCreateIndex(sortedMessages);
+         });
+
+         var tskTag = Task.Run(() =>
+         {
+            _indexTags = HelperCreateIndex(sortedTags);
+         });
+
+         var tskLog = Task.Run(() =>
+         {
+            _indexLogType = HelperCreateIndex(sortedLogType);
+         });
+
+         tskMsg.Wait();
+         tskTag.Wait();
+         tskLog.Wait();
+
+         _logger.LogDebug($"completed storing in indexes");
+
+         //Lets create the frame here
+         var logLineTypes = new LogType[totalLogLines];
+         var logLineLength = new int[4];
+         Parallel.For(0, totalLogLines, ndx =>
+         {
+            var type = GetLogLineType(ndx);
+            logLineTypes[ndx] = type;
+            Interlocked.Increment(ref logLineLength[(byte)type]);
+         });
+
+         _mainFrame = new LogFrame(
+            totalLogLines,
+            totalLogLines,
+            logLineTypes,
+            logLineLength,
+            null);
+
+      }
       private int[][] HelperCreateIndex(List<int>[] lst)
       {
          var sortedIndex = new int[lst.Length + 1][];

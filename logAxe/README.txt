@@ -10,3 +10,4 @@ Dec-08	log export shold have a time bar and export size and compact size
 ------------------------------------------
 > Design : how to show threads.
 > Design : Show lines by some tags.
+> Design & Optimize : to make sure the index sorting by timestamp can be done by timestamp of starting and ending of for each file.
