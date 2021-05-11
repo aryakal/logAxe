@@ -9,6 +9,7 @@ using logAxeEngine.EventMessages;
 using System.IO;
 using System.Linq;
 using System.IO.Compression;
+using System.Threading;
 
 namespace logAxeEngine.Engines
 {
@@ -200,30 +201,20 @@ namespace logAxeEngine.Engines
          var fileProgress = new FileParseProgressEvent() { TotalFileCount = lst.Count, ParseComplete = false };
          _messenger.PostMessage(fileProgress);
          _logger.LogInfo($"Total Files: {lst.Count} Size:  {Utils.GetHumanSize(totalFileSize)}");
-
-         for (int ndx = 0; ndx < lst.Count; ndx++)
+         if (useParallelTasks)
          {
-            _logger.LogDebugProgress($"parsing [ {ndx} of {lst.Count}] ");
-            var fileInfo = lst[ndx];
-            var logFile = new LogFile(
-                Path.GetFileName(fileInfo.FileName),
-                _ioHelper.GetFileData(fileInfo)
-                )
+            Parallel.For(0, lst.Count, ndx =>
             {
-               FileId = fileInfo.UniqueFileNo
-            };
-            _fileProgressStat.TotalFileSizeLoaded += logFile.FileData.Length;
-            fileInfo.LogParser.ParseFile(logFile);
-
-            _fileProgressStat.TotalFileLoadedCount++;
-            _database.AddLogFile(logFile, logFile.FileId);
-            _fileProgressStat.TotalFileParsedCount++;
-
-            _messenger.PostMessage(fileProgress);
-
-            logFile.Clear();
+               AddFileToIndex(lst[ndx]);
+            });
          }
-
+         else
+         {
+            for (int ndx = 0; ndx < lst.Count; ndx++)
+            {
+               AddFileToIndex(lst[ndx]);
+            }
+         }
          _allFiles.AddRange(lst);
          _database.OptimizeData();
          _messenger.PostMessage(LogAxeMessageEnum.EngineOptmizeComplete);
@@ -234,6 +225,44 @@ namespace logAxeEngine.Engines
          fileProgress.ParseComplete = true;
          _messenger.PostMessage(fileProgress);
       }
+
+      SemaphoreSlim _lockAddition = new SemaphoreSlim(1, 1);
+
+      private void AddFileToIndex(FileObject fileObject)
+      {
+         var logFile = new LogFile(
+                Path.GetFileName(fileObject.FileName),
+                _ioHelper.GetFileData(fileObject)
+                )
+         {
+            FileId = fileObject.UniqueFileNo
+         };
+         
+         fileObject.LogParser.ParseFile(logFile);
+
+         _lockAddition.Wait();
+         try
+         {
+            _fileProgressStat.TotalFileSizeLoaded += logFile.FileData.Length;
+            _fileProgressStat.TotalFileLoadedCount++;
+            _database.AddLogFile(logFile, logFile.FileId);
+            _fileProgressStat.TotalFileParsedCount++;
+            _messenger.PostMessage(_fileProgressStat);
+         }
+         catch
+         {
+         }
+         finally 
+         {
+            _lockAddition.Release();
+         }
+
+         logFile.Clear();
+         
+
+         
+      }
+
       //private CurrentResourceUsage GetCurrentUsage()
       //{
       //   return new CurrentResourceUsage()
