@@ -1061,12 +1061,12 @@ namespace logAxe
                               break;
 
                            case "Message":
-
+                              var lineData = rowData.Msg.Replace("\n", "").Replace("\r", "").TrimStart();
                               _newCanvas.gc.DrawString(
-
+                                 
                                   _userConfig.DebugUI ?
-                                  $"{rowData.GlobalLine}| {rowData.FileNumber}| {rowData.LineNumber}| {rowData.Msg.TrimStart()}" :
-                                  $"{rowData.Msg.TrimStart()}",
+                                  $"{rowData.GlobalLine}| {rowData.FileNumber}| {rowData.LineNumber}| {lineData}" :
+                                  $"{lineData}",
 
                                   _userConfig.TableBodyFont,
                                   brushes[(int)rowData.LogType],
