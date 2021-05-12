@@ -36,7 +36,8 @@ namespace logAxeEngine.Common
                         {                           
                            FileName = Path.GetFileName(entry.FullName),
                            FilePath = entry.FullName,
-                           FileSize = entry.Length
+                           FileSize = entry.Length,
+                           ZipArchivePath = path
                         });
                      }
                   }

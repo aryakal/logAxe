@@ -25,12 +25,11 @@ namespace logAxeEngine.Engines
       public IMessageBroker MessageBroker { get; }
       private int UniqueFileId { get; set; } = LogLine.INVALID;
       private MessageExchangeHelper _messenger;
-      private FileParseProgressEvent _fileProgressStat;
+      private FileParseProgressEvent _fileProgressStat = new FileParseProgressEvent();
       SemaphoreSlim _lockAddition = new SemaphoreSlim(1, 1);
 
       public LogAxeEngineManager(ISystemIO io = null)
-      {
-         _fileProgressStat = new FileParseProgressEvent();
+      {         
          _ioHelper = new FileObjectHelper(io ?? new SystemIO());
          MessageBroker = new LogMessageEngine();
          MessageBroker.Start();
@@ -202,7 +201,7 @@ namespace logAxeEngine.Engines
          if (0 == lst.Count)
             return;
 
-         _fileProgressStat.TotalFileCount = lst.Count;
+         _fileProgressStat.TotalFileCount += lst.Count;
 
          var fileProgress = new FileParseProgressEvent() { TotalFileCount = lst.Count, ParseComplete = false };
          _messenger.PostMessage(fileProgress);
@@ -230,11 +229,7 @@ namespace logAxeEngine.Engines
          _messenger.PostMessage(LogAxeMessageEnum.NewViewAnnouncement);
          fileProgress.ParseComplete = true;
          _messenger.PostMessage(fileProgress);
-      }
-      /// <summary>
-      /// 
-      /// </summary>
-      /// <param name="fileObject"></param>
+      }      
       private void AddFileToIndex(FileObject fileObject)
       {
          var logFile = new LogFile(
