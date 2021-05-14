@@ -17,13 +17,13 @@ namespace logAxe
          }
          this.Icon = Properties.Resources.axe_icon_svg_128;
          cntrlTextViewer1.SetMasterView();
-         cntrlTextViewer1.OnNewNotepadChange += TitelChangeEvent;
+         cntrlTextViewer1.OnNewNotepadChange += TitleChangeEvent;
       }
 
       public int UniqueFrmId { get; set; } = 1;
       public string WindowTitle { get; set; } = "logAxe - <version> - ";
 
-      void TitelChangeEvent(ILogAxeMessage message)
+      void TitleChangeEvent(ILogAxeMessage message)
       {
          this.Invoke(new Action(() =>
          {

@@ -10,27 +10,33 @@ using System.Linq;
 using logAxeEngine.Common;
 using logAxeEngine.Interfaces;
 using logAxeEngine.Engines;
-
+using System;
 
 namespace logAxe
 {
    class ViewCommon
    {
+      private static string RootAppDataPath {get;set;}
       private static MessageExchangeHelper _msgHelper;
       public static string VersionNo { get; set; }
       //public static Bitmap Stack { get; set; }
 
       public static void Init()
       {
+         RootAppDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "logAxe-data");
+         ConfigFilePath = Path.Combine(RootAppDataPath, "logaxe-config.json");
+         if (!Directory.Exists(RootAppDataPath))
+         {
+            Directory.CreateDirectory(RootAppDataPath);
+         }
          LoadConfiguration();
-
-         //Assembly assembly = Assembly.GetExecutingAssembly();
+         
          var version = Assembly.GetEntryAssembly().GetName().Version;
          VersionNo = $"{version.Major}.{version.Minor}.{version.Build}";
 
          //Stack = global::logAxe.Properties.Resources.ConePreview_16x;
 
-         var engine = new LogAxeEngineManager();
+         var engine = new LogAxeEngineManager(automaticSendMsg:true);
          Engine = engine;
          MessageBroker = engine.MessageBroker;
          Engine.RegisterPlugin(".");
@@ -56,8 +62,8 @@ namespace logAxe
          _msgHelper.PostMessage(msg);
       }
 
-      #region User_config
-      private static string ConfigFileName { get; set; } = "config.json";
+      #region User_config        
+      private static string ConfigFilePath { get; set; }
       private static frmConfigAbout ConfigFrm { get; set; }
 
       public static void ShowPropertyScreen()
@@ -67,14 +73,15 @@ namespace logAxe
 
       public static void SaveConfiguration()
       {
-         File.WriteAllText(ConfigFileName, JsonConvert.SerializeObject(UserConfig, Formatting.Indented));
+         //TODO : backup last config !
+         File.WriteAllText(ConfigFilePath, JsonConvert.SerializeObject(UserConfig, Formatting.Indented));
       }
 
       public static void LoadConfiguration()
       {
-         if (File.Exists(ConfigFileName))
+         if (File.Exists(ConfigFilePath))
          {
-            UserConfig = JsonConvert.DeserializeObject<UserConfig>(File.ReadAllText(ConfigFileName));
+            UserConfig = JsonConvert.DeserializeObject<UserConfig>(File.ReadAllText(ConfigFilePath));
          }
       }
       #endregion

@@ -27,14 +27,17 @@ namespace logAxeEngine.Engines
       private MessageExchangeHelper _messenger;
       private FileParseProgressEvent _fileProgressStat = new FileParseProgressEvent();
       SemaphoreSlim _lockAddition = new SemaphoreSlim(1, 1);
+      private CancellationTokenSource _cancelPumpMsg;
+      private Task _msgPumpEngine;
 
-      public LogAxeEngineManager(ISystemIO io = null)
+      public LogAxeEngineManager(ISystemIO io = null, bool automaticSendMsg=false)
       {         
          _ioHelper = new FileObjectHelper(io ?? new SystemIO());
          MessageBroker = new LogMessageEngine();
          MessageBroker.Start();
          _messenger = new MessageExchangeHelper(MessageBroker, null);
          Clear();
+         PumpBackgroundMsg(automaticSendMsg);
       }
       public int TotalLogLines => _database.TotalLogLines;
       public void RegisterPlugin(string folderPath = @".")
@@ -179,6 +182,32 @@ namespace logAxeEngine.Engines
          return _fileProgressStat;
       }
 
+      private void PumpBackgroundMsg(bool automaticSendMsg)
+      {
+         if (automaticSendMsg)
+         {
+            _fileProgressStat.ParseComplete = true;
+            _cancelPumpMsg = new CancellationTokenSource();
+            _msgPumpEngine = Task.Factory.StartNew(() =>
+            {
+               while (true)
+               {
+                  try
+                  {
+                     Task.Delay(1000).Wait();
+                     _messenger.PostMessage(_fileProgressStat);
+                  }
+                  catch (Exception ex)
+                  {
+                     _logger.LogError(ex.ToString());
+                  }
+                  
+               }
+            }, TaskCreationOptions.LongRunning);
+         }
+         
+      }
+
       /// <summary>
       /// 
       /// </summary>
@@ -202,10 +231,8 @@ namespace logAxeEngine.Engines
             return;
 
          _fileProgressStat.TotalFileCount += lst.Count;
+         _fileProgressStat.ParseComplete = false;
 
-         var fileProgress = new FileParseProgressEvent() { TotalFileCount = lst.Count, ParseComplete = false };
-         _messenger.PostMessage(fileProgress);
-         _logger.LogInfo($"Total Files: {lst.Count} Size:  {Utils.GetHumanSize(totalFileSize)}");
          if (useParallelTasks)
          {
             Parallel.For(0, lst.Count, ndx =>
@@ -227,8 +254,8 @@ namespace logAxeEngine.Engines
          GC.Collect();
          _logger.LogDebug("optmizing data compelted");
          _messenger.PostMessage(LogAxeMessageEnum.NewViewAnnouncement);
-         fileProgress.ParseComplete = true;
-         _messenger.PostMessage(fileProgress);
+         _fileProgressStat.ParseComplete = true;
+
       }      
       private void AddFileToIndex(FileObject fileObject)
       {

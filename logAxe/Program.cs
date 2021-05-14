@@ -1,7 +1,5 @@
-﻿using logAxeEngine;
-using System;
+﻿using System;
 using System.Windows.Forms;
-using logAxeEngine.Common;
 
 namespace logAxe
 {
@@ -24,11 +22,8 @@ namespace logAxe
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-
             ViewCommon.Init();
-
             Application.Run(new frmMainWindow());
-
             ViewCommon.DeInit();
         }
 
