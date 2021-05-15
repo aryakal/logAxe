@@ -35,13 +35,15 @@
          // cntrlTextViewer1
          // 
          this.cntrlTextViewer1.AllowDrop = true;
-         this.cntrlTextViewer1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
-         | System.Windows.Forms.AnchorStyles.Left)
-         | System.Windows.Forms.AnchorStyles.Right)));
+         this.cntrlTextViewer1.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
          this.cntrlTextViewer1.BackColor = System.Drawing.Color.White;
-         this.cntrlTextViewer1.Location = new System.Drawing.Point(1, 0);
+         this.cntrlTextViewer1.Dock = System.Windows.Forms.DockStyle.Fill;
+         this.cntrlTextViewer1.IsViewNotepad = false;
+         this.cntrlTextViewer1.Location = new System.Drawing.Point(0, 0);
          this.cntrlTextViewer1.Name = "cntrlTextViewer1";
-         this.cntrlTextViewer1.Size = new System.Drawing.Size(1326, 456);
+         this.cntrlTextViewer1.NotepadName = null;
+         this.cntrlTextViewer1.OnNewNotepadChange = null;
+         this.cntrlTextViewer1.Size = new System.Drawing.Size(1327, 456);
          this.cntrlTextViewer1.TabIndex = 0;
          // 
          // frmMainWindow
