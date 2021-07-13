@@ -48,6 +48,12 @@
          this.copyToNotepadToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
          this.newNotepadToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
          this.copyLinesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+         this.pnlFilter = new System.Windows.Forms.Panel();
+         this.button3 = new System.Windows.Forms.Button();
+         this.button2 = new System.Windows.Forms.Button();
+         this.button1 = new System.Windows.Forms.Button();
+         this.textBox1 = new System.Windows.Forms.TextBox();
+         this.listBox1 = new System.Windows.Forms.ListBox();
          this.pnlShowProgress = new System.Windows.Forms.Panel();
          this.lblOptmizeUpdate = new System.Windows.Forms.Label();
          this.lblIndexingUpdate = new System.Windows.Forms.Label();
@@ -110,21 +116,15 @@
          this.btnCloneView = new System.Windows.Forms.Button();
          this.btnConfigure = new System.Windows.Forms.Button();
          this.btnFilter = new System.Windows.Forms.Button();
-         this.pnlFilter = new System.Windows.Forms.Panel();
-         this.listBox1 = new System.Windows.Forms.ListBox();
-         this.textBox1 = new System.Windows.Forms.TextBox();
-         this.button1 = new System.Windows.Forms.Button();
-         this.button2 = new System.Windows.Forms.Button();
-         this.button3 = new System.Windows.Forms.Button();
          this.masterPanel.SuspendLayout();
          this.contextMenu.SuspendLayout();
+         this.pnlFilter.SuspendLayout();
          this.pnlShowProgress.SuspendLayout();
          this.pnlFilterSearch.SuspendLayout();
          this.pnlFuture.SuspendLayout();
          this.panel4.SuspendLayout();
          this.pnlLogLineInfo.SuspendLayout();
          this.pnlStats.SuspendLayout();
-         this.pnlFilter.SuspendLayout();
          this.SuspendLayout();
          // 
          // masterPanel
@@ -301,6 +301,65 @@
          this.copyLinesToolStripMenuItem.Size = new System.Drawing.Size(193, 24);
          this.copyLinesToolStripMenuItem.Text = "Copy";
          this.copyLinesToolStripMenuItem.Click += new System.EventHandler(this.copyLinesToolStripMenuItem_Click);
+         // 
+         // pnlFilter
+         // 
+         this.pnlFilter.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+         this.pnlFilter.BackColor = System.Drawing.Color.White;
+         this.pnlFilter.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+         this.pnlFilter.Controls.Add(this.button3);
+         this.pnlFilter.Controls.Add(this.button2);
+         this.pnlFilter.Controls.Add(this.button1);
+         this.pnlFilter.Controls.Add(this.textBox1);
+         this.pnlFilter.Controls.Add(this.listBox1);
+         this.pnlFilter.Location = new System.Drawing.Point(568, 246);
+         this.pnlFilter.Name = "pnlFilter";
+         this.pnlFilter.Size = new System.Drawing.Size(513, 186);
+         this.pnlFilter.TabIndex = 41;
+         this.pnlFilter.Visible = false;
+         // 
+         // button3
+         // 
+         this.button3.Image = global::logAxe.Properties.Resources.Filter_Delete;
+         this.button3.Location = new System.Drawing.Point(30, 73);
+         this.button3.Name = "button3";
+         this.button3.Size = new System.Drawing.Size(30, 30);
+         this.button3.TabIndex = 44;
+         this.button3.UseVisualStyleBackColor = true;
+         // 
+         // button2
+         // 
+         this.button2.Image = global::logAxe.Properties.Resources.Filter_Apply;
+         this.button2.Location = new System.Drawing.Point(30, 11);
+         this.button2.Name = "button2";
+         this.button2.Size = new System.Drawing.Size(30, 30);
+         this.button2.TabIndex = 43;
+         this.button2.UseVisualStyleBackColor = true;
+         // 
+         // button1
+         // 
+         this.button1.Image = global::logAxe.Properties.Resources.Filter_Add;
+         this.button1.Location = new System.Drawing.Point(30, 141);
+         this.button1.Name = "button1";
+         this.button1.Size = new System.Drawing.Size(30, 30);
+         this.button1.TabIndex = 42;
+         this.button1.UseVisualStyleBackColor = true;
+         // 
+         // textBox1
+         // 
+         this.textBox1.Location = new System.Drawing.Point(80, 149);
+         this.textBox1.Name = "textBox1";
+         this.textBox1.Size = new System.Drawing.Size(422, 22);
+         this.textBox1.TabIndex = 41;
+         // 
+         // listBox1
+         // 
+         this.listBox1.FormattingEnabled = true;
+         this.listBox1.ItemHeight = 16;
+         this.listBox1.Location = new System.Drawing.Point(82, 9);
+         this.listBox1.Name = "listBox1";
+         this.listBox1.Size = new System.Drawing.Size(420, 132);
+         this.listBox1.TabIndex = 0;
          // 
          // pnlShowProgress
          // 
@@ -994,70 +1053,10 @@
          this.btnFilter.UseVisualStyleBackColor = true;
          this.btnFilter.Click += new System.EventHandler(this.btnFilter_Click);
          // 
-         // pnlFilter
-         // 
-         this.pnlFilter.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-         this.pnlFilter.BackColor = System.Drawing.Color.White;
-         this.pnlFilter.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-         this.pnlFilter.Controls.Add(this.button3);
-         this.pnlFilter.Controls.Add(this.button2);
-         this.pnlFilter.Controls.Add(this.button1);
-         this.pnlFilter.Controls.Add(this.textBox1);
-         this.pnlFilter.Controls.Add(this.listBox1);
-         this.pnlFilter.Location = new System.Drawing.Point(568, 246);
-         this.pnlFilter.Name = "pnlFilter";
-         this.pnlFilter.Size = new System.Drawing.Size(513, 186);
-         this.pnlFilter.TabIndex = 41;
-         this.pnlFilter.Visible = false;
-         // 
-         // listBox1
-         // 
-         this.listBox1.FormattingEnabled = true;
-         this.listBox1.ItemHeight = 16;
-         this.listBox1.Location = new System.Drawing.Point(82, 9);
-         this.listBox1.Name = "listBox1";
-         this.listBox1.Size = new System.Drawing.Size(420, 132);
-         this.listBox1.TabIndex = 0;
-         // 
-         // textBox1
-         // 
-         this.textBox1.Location = new System.Drawing.Point(80, 149);
-         this.textBox1.Name = "textBox1";
-         this.textBox1.Size = new System.Drawing.Size(422, 22);
-         this.textBox1.TabIndex = 41;
-         // 
-         // button1
-         // 
-         this.button1.Image = global::logAxe.Properties.Resources.Filter_Add;
-         this.button1.Location = new System.Drawing.Point(30, 141);
-         this.button1.Name = "button1";
-         this.button1.Size = new System.Drawing.Size(30, 30);
-         this.button1.TabIndex = 42;
-         this.button1.UseVisualStyleBackColor = true;
-         // 
-         // button2
-         // 
-         this.button2.Image = global::logAxe.Properties.Resources.Filter_Apply;
-         this.button2.Location = new System.Drawing.Point(30, 11);
-         this.button2.Name = "button2";
-         this.button2.Size = new System.Drawing.Size(30, 30);
-         this.button2.TabIndex = 43;
-         this.button2.UseVisualStyleBackColor = true;
-         // 
-         // button3
-         // 
-         this.button3.Image = global::logAxe.Properties.Resources.Filter_Delete;
-         this.button3.Location = new System.Drawing.Point(30, 73);
-         this.button3.Name = "button3";
-         this.button3.Size = new System.Drawing.Size(30, 30);
-         this.button3.TabIndex = 44;
-         this.button3.UseVisualStyleBackColor = true;
-         // 
          // CntrlTextViewer
          // 
          this.AllowDrop = true;
-         this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
-         this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+         this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Inherit;
          this.BackColor = System.Drawing.Color.White;
          this.Controls.Add(this.pnlFuture);
          this.Controls.Add(this.masterPanel);
@@ -1066,6 +1065,8 @@
          this.KeyUp += new System.Windows.Forms.KeyEventHandler(this.CntrlTextViewer_KeyUp);
          this.masterPanel.ResumeLayout(false);
          this.contextMenu.ResumeLayout(false);
+         this.pnlFilter.ResumeLayout(false);
+         this.pnlFilter.PerformLayout();
          this.pnlShowProgress.ResumeLayout(false);
          this.pnlFilterSearch.ResumeLayout(false);
          this.pnlFilterSearch.PerformLayout();
@@ -1073,8 +1074,6 @@
          this.panel4.ResumeLayout(false);
          this.pnlLogLineInfo.ResumeLayout(false);
          this.pnlStats.ResumeLayout(false);
-         this.pnlFilter.ResumeLayout(false);
-         this.pnlFilter.PerformLayout();
          this.ResumeLayout(false);
 
       }
