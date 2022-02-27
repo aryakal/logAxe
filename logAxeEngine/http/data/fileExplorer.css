@@ -1,0 +1,61 @@
+/*
+//=====================================================================================================================
+// Source : https://github.com/aryakal/
+//--------------------------------------------------------------------------------------------------------------------
+//=====================================================================================================================
+*/
+
+.feDialog {
+    position: absolute;
+    top: 300px;
+    right: 125px;
+    width: 500px;
+    height: 300px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
+    background-color: whitesmoke;
+}
+
+.feUrl1 {
+    width: 100%;
+    min-width: 90%;
+    font-size: 13px;
+    font-family: Calibri;
+}
+
+.feDialog.span {
+    width: 400px;
+    display: block;
+    overflow: hidden;
+    padding-right: 10px;
+}
+
+.feRow {
+    display: flex;
+    flex-direction: row;
+    background-color: white;
+}
+
+.rowFull {
+    height: 94%;
+    background-color: whitesmoke;
+}
+
+.feColumn {
+    flex: 0.9;
+    overflow-y: auto;
+}
+
+.feFavCol {
+    width: 50px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
+}
+
+.userDialog {
+    position: absolute;
+    top: 0px;
+    left: 10px;
+    width: 500px;
+    height: 300px;
+    background-color: whitesmoke;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
+}
