@@ -9,7 +9,8 @@ using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using logAxeEngine.Interfaces;
-using logAxeEngine.Common;
+using logAxeCommon;
+using libALogger;
 
 namespace logAxeEngine.Engines
 {
@@ -20,9 +21,10 @@ namespace logAxeEngine.Engines
       private SemaphoreSlim _lockMessageQueue = new SemaphoreSlim(1, 1);
       private Dictionary<string, IMessageReceiver> _messageClients = new Dictionary<string, IMessageReceiver>();
       private BlockingCollection<ILogAxeMessage> _msgQueue = new BlockingCollection<ILogAxeMessage>();
-      private NamedLogger _logger = new NamedLogger("msgEngine");
+      private ILibALogger _logger;
       public LogMessageEngine()
       {
+         _logger = Logging.GetLogger("msgs");
       }
       public void SendMessage(ILogAxeMessage message)
       {

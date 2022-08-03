@@ -8,73 +8,54 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Threading;
-using System.Diagnostics;
-using System.Text;
+using System.Threading.Tasks;
 
-using Newtonsoft.Json;
 using logAxeCommon;
+using logAxeCommon.Files;
+using logAxeCommon.Interfaces;
 using logAxeEngine.Interfaces;
 using logAxeEngine.Common;
 
+using libACommunication;
+using libALogger;
 
-using libWebServer;
 
 
 namespace logAxe.http
 {
-   public class logAxeHttpServerProxy : IMessageReceiver
+   public class logAxeHttpServerProxy : IMessageReceiver, IProtoProcessorProcessClientsAdv<HttpListenerContext>
    {
-      private ILogger _log;
+      private ILibALogger _log;
       private ILogEngine _engine;
       private MessageExchangeHelper _messenger;
       private readonly string _appRootPath;
       private List<IFileObject> _lst = new List<IFileObject>();
       Dictionary<string, byte[]> _cachedFiles = new Dictionary<string, byte[]>();
-      ILibWebServer _libWebServer;
+      IDLServer _libWebServer;
       private SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
+      private bool _exitOnLastClient =  false;
+      // private string _internalPath = "./data/";
+      private string _internalPath = "../../http/data/";
       class ViewData
       {
          public LogFrame Frame { get; set; } = null;
          public TermFilter Filter { get; set; } = new TermFilter();
       }
       Dictionary<string, WebFrame> _viewData = new Dictionary<string, WebFrame>();
-
-      class WebLogProxy : ILibWebServerLogger
-      {
-         ILogger _logger;
-         public WebLogProxy(ILogger logger)
-         { 
-             _logger = logger;
-         }
-         public void Debug(string message)
-         {
-            _logger.Debug(message);
-         }
-
-         public void Error(string message)
-         {
-            _logger.Error(message);
-         }
-
-         public void Trace(string message)
-         {
-            _logger.Debug(message);
-         }
-      }
-
-      public logAxeHttpServerProxy(ILogger logger, ILogEngine engine, int port = 8080, string serverIp = "127.0.0.1", string appRootPath = "/logAxe/", bool debugHttp=false)
+      public logAxeHttpServerProxy(ILibALogger logger, ILogEngine engine, int port = 8080, string serverIp = "127.0.0.1", string appRootPath = "/logAxe/", bool debugHttp = false)
       {
          _appRootPath = appRootPath;
          _log = logger;
          _engine = engine;
-         _messenger = new MessageExchangeHelper(_engine.MessageBroker, this);
+         //_messenger = new MessageExchangeHelper(_engine.MessageBroker, this);
          _libWebServer = new LibWebServer(
-             address: serverIp, 
-             port: port, 
-             logger: debugHttp ? new WebLogProxy(_log) : null);
-         //_libWebServer = new LibWebServer(serverIp, port);
-         _libWebServer.HttpMessage = ProcessWebRequest;
-         _libWebServer.WsMessage = ProcessWebSocketRequest;
+            processor: this,
+            address: serverIp,
+            port: port,
+            logger: debugHttp ? Logging.GetLogger("http") : null,
+            websoketLogger: debugHttp ? Logging.GetLogger("ws") : null
+            );
+
       }
 
       public void GetMessage(ILogAxeMessage message)
@@ -88,7 +69,7 @@ namespace logAxe.http
                      var view = v.Value;
                      view.SetFrame(_engine.Filter(view.Filter));
                   }
-                  _libWebServer.BroadcastMsg(JsonConvert.SerializeObject(new WsOperation("refreshView", "all"), Formatting.Indented));
+                  _libWebServer.BroadCast(new UnitCmd("refreshView", "all", responseStatus: WebHelper.RespSuccess));
                }
                break;
          }
@@ -96,25 +77,31 @@ namespace logAxe.http
 
       public void Start()
       {
-         _libWebServer.RunForever();
+         CancellationTokenSource cts = new CancellationTokenSource(); //TODO remove from here.
+         var tsk = Task.Factory.StartNew(() =>
+         {
+            _log?.Info($"starting background tsk");
+            _log?.Info($"web root,  { Path.GetFullPath(_internalPath)}");
+            while (true)
+            {
+               try
+               {
+                  if (null != _log)
+                  {
+                     //_log.Debug($"total views {0} ");
+                  }
+                  Task.Delay(2000).Wait();
+
+               }
+               catch (Exception ex)
+               {
+                  Console.Write(ex);
+               }
+            }
+         });
+         _libWebServer.RunForever(cts.Token);
       }
 
-      //private void ServerFile(HttpListenerContext ctx, string filePath)
-      //{
-      //   var response = ctx.Response;
-      //   using (FileStream fs = File.OpenRead(filePath))
-      //   {
-      //      string filename = Path.GetFileName(filePath);            
-      //      response.ContentLength64 = fs.Length;
-      //      response.SendChunked = false;
-      //      using (var writer = new BinaryWriter(ctx.Response.OutputStream))
-      //      {
-      //         writer.Write();
-      //      }
-      //      //response.ContentType = System.Net.Mime.MediaTypeNames.Application.Octet;
-      //      //response.AddHeader("Content-disposition", "attachment; filename=" + filename);
-      //   }
-      //}
       private byte[] LoadFileFileInMemory(string filePath, bool recatch = false)
       {
          if (!_cachedFiles.ContainsKey(filePath) || recatch)
@@ -125,25 +112,24 @@ namespace logAxe.http
       }
       public void StartWebBrowser()
       {
-         _libWebServer.StartWebBrowser();         
-      }
-      private static void Process_Exited(object sender, EventArgs e)
-      {
-
+         _log?.Info("Starting web server");
+         //_libWebServer.StartWebBrowser(); //TODO : web , need interface helper functions to launch the web browser.
       }
 
-      public void ProcessWebRequest(HttpListenerContext ctx)
+      public void ProcessHttpRequest(HttpListenerContext ctx)
       {
          try
          {
+
             bool sendError = true;
-            _log.Debug($"url, {ctx.Request.RawUrl}");
+            //_log.Debug($"url, {ctx.Request.RawUrl}");
 
             var url = ctx.Request.Url.AbsolutePath;
             if (url == "/")
             {
                ctx.Response.Redirect($"{_appRootPath}ui/mainUI.html");
-               ctx.Response.StatusCode = 302;
+               ctx.Response.Close();
+               //ctx.Response.StatusCode = 302;
                sendError = false;
             }
             else if (url.StartsWith(_appRootPath))
@@ -157,110 +143,25 @@ namespace logAxe.http
 
                if ("ui" == module)
                {
-
                   using (var writer = new BinaryWriter(ctx.Response.OutputStream))
                   {
-                     writer.Write(LoadFileFileInMemory(url.Replace("/logAxe/ui/", "http/data/"), true));
+                     var absPath = Path.GetFullPath(url.Replace("/logAxe/ui/", _internalPath));
+                     //TODO security
+                     //_logger.Debug($"loading, {absPath}");
+                     //TODO reaload when there is debug 
+                     if (File.Exists(absPath))
+                     {
+                        writer.Write(LoadFileFileInMemory(absPath, true));
+                     }
+                     else
+                     {
+                        _log.Error($"Not found : {absPath}");
+                        sendError = true;
+                     }
+
                   }
                }
-               else if ("vw" == module)
-               {
-                  var viewName = query["n"] == null ? "" : query["n"];
-                  switch (query["op"])
-                  {
-                     case "allView":
-                        WebHelper.SendJson(ctx, JsonConvert.SerializeObject(_viewData, Formatting.Indented));
-                        break;
-                     case "createView":
-                        try
-                        {
-                           _lock.Wait();
-                           for (var ndx = 1; ndx < 999; ndx++)
-                           {
-                              viewName = $"v{ndx}";
-                              if (!_viewData.ContainsKey(viewName))
-                              {
-                                 _viewData[viewName] = new WebFrame(viewName, _engine.GetMasterFrame());
-                                 break;
-                              }
-                           }//TODO clear the old views.
-                           WebHelper.SendJson(ctx, JsonConvert.SerializeObject(_viewData[viewName], Formatting.Indented));
-                        }
-                        finally
-                        {
-                           _lock.Release();
-                        }
-
-                        break;
-                     case "info":
-                        WebHelper.SendJson(ctx, JsonConvert.SerializeObject(_viewData[viewName], Formatting.Indented));
-                        break;
-                     case "ping":
-
-                        if (_viewData.ContainsKey(viewName))
-                        {
-                           WebHelper.SendJson(ctx, JsonConvert.SerializeObject(_viewData[viewName], Formatting.Indented));
-                        }
-                        else
-                        {
-                           ctx.Response.StatusCode = 410;
-                           using (var writer = new StreamWriter(ctx.Response.OutputStream))
-                           {
-                              writer.Write("cannot find the view name");
-                           }
-                        }
-                        //ctx.Response.StatusCode = 410;
-                        //using (var writer = new StreamWriter(ctx.Response.OutputStream))
-                        //{
-                        //   writer.Write("cannot find the view name");
-                        //}
-
-                        break;
-                     case "line":
-                        var startLine = int.Parse(query["s"]);
-                        var length = int.Parse(query["l"]);
-                        var lines = new WebLogLines(viewName, length);
-                        for (int ndx = startLine; ndx < length + startLine; ndx++)
-                        {
-                           if (ndx >= _viewData[viewName].TotalLogLines)
-                           {
-                              break;
-                           }
-                           lines.LogLines.Add(_engine.GetLogLine(_viewData[viewName].Frame.TranslateLine(ndx)));
-                        }
-                        WebHelper.SendJson(ctx, JsonConvert.SerializeObject(lines, Formatting.Indented));
-                        break;
-                     case "filter":
-                        if (ctx.Request.HttpMethod == "GET")
-                        {
-                           WebHelper.SendJson(ctx, JsonConvert.SerializeObject(_viewData[viewName].Filter, Formatting.Indented));
-                        }
-                        else
-                        {
-                           var data = WebHelper.GetPostData(ctx);
-                           var filter = JsonConvert.DeserializeObject<TermFilter>(data);
-                           _viewData[viewName].SetFrameAndFilter(_engine.Filter(filter), filter);
-                           WebHelper.SendJson(ctx, JsonConvert.SerializeObject(_viewData[viewName], Formatting.Indented));
-                        }
-                        break;
-                     case null:
-                        break;
-                  }
-               }
-               else if ("openView" == module)
-               {
-                  try
-                  {
-                     StartWebBrowser();
-                     WebHelper.SendJson(ctx, JsonConvert.SerializeObject(new Dictionary<string, object>() { { "status", "success" } }, Formatting.Indented));
-                  }
-                  catch
-                  {
-                     WebHelper.SendJson(ctx, JsonConvert.SerializeObject(new Dictionary<string, object>() { { "status", "failed" } }, Formatting.Indented));
-                  }
-
-
-               }
+          
                else if ("files" == module)
                {
 
@@ -271,28 +172,30 @@ namespace logAxe.http
                         var data = WebHelper.GetPostData(ctx).Split(new char[] { ',' })[1];
                         var byteData = Convert.FromBase64String(data);
                         _lst.Add(new WebFile(fileName, byteData));
-                        WebHelper.SendJson(ctx, JsonConvert.SerializeObject(new Dictionary<string, object>() { { "status", "sucess" }, { "size", byteData.Length }, { "name", fileName } }, Formatting.Indented));
+                        WebHelper.SendJson(ctx, Utils.ToJson(new Dictionary<string, object>() { { "status", "sucess" }, { "size", byteData.Length }, { "name", fileName } }));
                         break;
-                     case "process":
-                        _engine.AddFiles(_lst.ToArray(), false, true);
-                        _lst.Clear();
-                        WebHelper.SendJson(ctx, JsonConvert.SerializeObject(new Dictionary<string, object>() { { "files", _engine.GetAllFileNames() } }, Formatting.Indented));
-                        break;
-                     case "clear":
-                        _engine.Clear();
-                        _lst.Clear();
-                        WebHelper.SendJson(ctx, JsonConvert.SerializeObject(new Dictionary<string, object>() { { "files", _engine.GetAllFileNames() } }, Formatting.Indented));
-                        break;
-                     case "cancel":
-                        _lst.Clear();
-                        WebHelper.SendJson(ctx, JsonConvert.SerializeObject(new Dictionary<string, object>() { { "files", _engine.GetAllFileNames() } }, Formatting.Indented));
-                        break;
-                     case "status":
-                        WebHelper.SendJson(ctx, JsonConvert.SerializeObject(new Dictionary<string, object>() { { "files", _engine.GetAllFileNames() } }, Formatting.Indented));
-                        break;
-                     case "lst":
-                        WebHelper.SendJson(ctx, JsonConvert.SerializeObject(new Dictionary<string, object>() { { "files", _engine.GetAllFileNames() } }, Formatting.Indented));
-                        break;
+                        //case "process":
+                        //   _engine.AddFiles(_lst.ToArray(), false, true);
+                        //   _lst.Clear();
+                        //   WebHelper.SendJson(ctx, Utils.ToJson(new Dictionary<string, object>() { { "files", _engine.GetAllLogFileInfo() } }));
+                        //   break;
+                        //case "clear":
+                        //   _engine.Clear();
+                        //   _lst.Clear();
+                        //   WebHelper.SendJson(ctx, Utils.ToJson(new Dictionary<string, object>() { { "files", _engine.GetAllLogFileInfo() } }));
+                        //   break;
+                        //case "cancel":
+                        //   _lst.Clear();
+                        //   WebHelper.SendJson(ctx, Utils.ToJson(new Dictionary<string, object>() { { "files", _engine.GetAllLogFileInfo() } }));
+                        //   break;
+                        //case "status":
+                        //   WebHelper.SendJson(ctx, Utils.ToJson(new Dictionary<string, object>() { { "files", _engine.GetAllLogFileInfo() } }));
+                        //   break;
+                        //case "lst":
+                        //   WebHelper.SendJson(ctx, Utils.ToJson(new Dictionary<string, object>() { { "files", _engine.GetAllLogFileInfo() } }));
+                        //   break;
+
+
                   }
 
 
@@ -323,10 +226,10 @@ namespace logAxe.http
                      case "fav":
                         // TODO : make this a generic code or an input from json !
                         resp.DirPaths.Add(new DirItem() { Path = @"c:\", Name = "c Drive" });
-                        resp.DirPaths.Add(new DirItem() { Path = @"d:\", Name = "d Drive" });                        
+                        resp.DirPaths.Add(new DirItem() { Path = @"d:\", Name = "d Drive" });
                         break;
                   }
-                  WebHelper.SendJson(ctx, JsonConvert.SerializeObject(resp, Formatting.Indented));
+                  WebHelper.SendJson(ctx, Utils.ToJson(resp));
                }
                else
                {
@@ -348,63 +251,41 @@ namespace logAxe.http
             Console.Write(ex);
          }
       }
-      public void ProcessWebSocketRequest(WebSocketMsgType msgType, ISocketID clientInfo, string msg)
+
+      public UnitCmd ProcessWsOperation(LibCommProtoMsgType msgType, IClientInfo clientInfo, UnitCmd message = null)
       {
-
-
          try
          {
-            if (string.IsNullOrEmpty(msg)) { return; }
-            var d = JsonConvert.DeserializeObject<WsOperation>(msg);
-            _log.Debug($"Ws | {msgType}, {clientInfo.ID}-> {d.OpCode} | {d.Name} | {msg}");
-            switch (d.OpCode)
+            if (msgType != LibCommProtoMsgType.Msg)
+               return null;
+            switch (message.OpCode)
             {
                case "lines":
                   {
-                     var t = typeof(CmdLines).ToString();
-                     var l1 = JsonConvert.DeserializeObject<CmdLines>(d.Value.ToString());
-
-                     var lines = new WebLogLines(d.Name, l1.Length);
+                     if (message.UID == null)
+                        return null;
+                     var l1 = Utils.FromJson<CmdLines>(message.Value.ToString());
+                     var lines = new WebLogLines(message.UID, l1.Length);
                      for (int ndx = l1.StartLine; ndx < l1.Length + l1.StartLine; ndx++)
                      {
-                        if (ndx >= _viewData[d.Name].TotalLogLines)
+                        if (ndx >= _viewData[message.UID].TotalLogLines)
                         {
                            break;
                         }
-                        lines.LogLines.Add(_engine.GetLogLine(_viewData[d.Name].Frame.TranslateLine(ndx)));
+                        lines.LogLines.Add(_engine.GetLogLine(_viewData[message.UID].Frame.TranslateLine(ndx)));
                      }
-
-                     _libWebServer.SendMsg(clientInfo, JsonConvert.SerializeObject(new WsOperation(d.OpCode, d.Name, lines), Formatting.Indented));
-
+                     return new UnitCmd(message.OpCode, message.UID, lines, responseStatus: WebHelper.RespSuccess);
                   }
-                  break;
                case "getInfo":
                   {
-
-                     if (d.Name == "")
+                     if (!_viewData.ContainsKey(clientInfo.ID) || clientInfo.ID != message.UID)
                      {
-                        try
-                        {
-                           _lock.Wait();
-                           for (var ndx = 1; ndx < 999; ndx++)
-                           {
-                              d.Name = $"v{ndx:03d}";
-                              if (!_viewData.ContainsKey(d.Name))
-                              {
-                                 _viewData[d.Name] = new WebFrame(d.Name, _engine.GetMasterFrame());
-                                 break;
-                              }
-                           }//TODO clear the old views.
-
-                        }
-                        finally
-                        {
-                           _lock.Release();
-                        }
+                        message.UID = clientInfo.ID;
+                        _viewData[clientInfo.ID] = new WebFrame(clientInfo.ID, _engine.GetMasterFrame());
                      }
-                     _libWebServer.SendMsg(clientInfo, JsonConvert.SerializeObject(new WsOperation(d.OpCode, d.Name, _viewData[d.Name]), Formatting.Indented));
+                     return new UnitCmd(message.OpCode, message.UID, _viewData[message.UID], responseStatus: WebHelper.RespSuccess);
                   }
-                  break;
+
                case "clearFiles":
                   {
                      _engine.Clear();
@@ -412,49 +293,341 @@ namespace logAxe.http
                   break;
                case "filter":
                   {
-                     var filter = JsonConvert.DeserializeObject<TermFilter>(d.Value.ToString());
-                     _viewData[d.Name].SetFrameAndFilter(_engine.Filter(filter), filter);
-                     _libWebServer.SendMsg(clientInfo, JsonConvert.SerializeObject(new WsOperation("getInfo", d.Name, _viewData[d.Name]), Formatting.Indented));
+                     var filter = Utils.FromJson<TermFilter>(message.Value.ToString());
+                     _viewData[message.UID].SetFrameAndFilter(_engine.Filter(filter), filter);
+                     return new UnitCmd("getInfo", message.UID, _viewData[message.UID], responseStatus: WebHelper.RespSuccess);
                   }
-                  break;
+               case "config":
+                  {
+                     var config = Utils.ToJson<ConfigUI>(new ConfigUI());
+                     Utils.ToJson(new UnitCmd("getInfo", message.UID, _viewData[message.UID], responseStatus: WebHelper.RespSuccess));
+                     break;
+                  }
+               case "openView":
+                  {
+                     StartWebBrowser();
+                     break;
+                  }
+               case "process":
+                  {                     
+                     _engine.AddFiles(_lst.ToArray(), false, true);
+                     _lst.Clear();
+                     break;
+                  }
+               default:
+                  //message.Value = null;
+                  //message.Status = WebHelper.RespFailed;
+                  SetFailed(message, $"{message.OpCode}, Command does not exists.");
+                  return message;
+
             }
+
          }
          catch (Exception ex)
          {
-
-            _log.Error($"{msgType}, {clientInfo.ID}-> {msg}");
+            _log.Error($"{msgType}, {clientInfo.ID}");
             _log.Error(ex.ToString());
+            message.Value = null;
+            message.Status = WebHelper.RespFailed;
+            return message;
          }
+
+         message.Value = null;
+         message.Status = WebHelper.RespSuccess;
+         return message;
+      }
+      private void SetFailed(UnitCmd message, string reason)
+      {
+         message.Value = new Dictionary<string, object>() { { "reason", reason } };
+         message.Status = WebHelper.RespFailed;
       }
 
-      class WsOperation
+      public void ProcessTotalClients(int totalClients)
       {
-         public WsOperation() { }
-
-         public WsOperation(string opCode, string name, object value=null)
+         if (totalClients == 0)
          {
-            OpCode = opCode;
-            Name = name;            
-            Value = (null != value)? value: new Dictionary<string, string>();
+            _log?.Info($"Detected no clients connected, signal to close. exitOnLastClient {_exitOnLastClient}");
+            //TODO : enable the ability to close a server.
+            //if(_exitOnLastClient)
+            //   _libWebServer.Stop();
+         }
+      }
+
+      public static void Test() {
+         //var client = new WebSocketClientTest(
+         //   bufferSize:4096, 
+         //   logger: new WebLogProxy(new NamedLogger("ws")));
+         //client.ProcessWebSocket().Wait();
+      }
+
+      public void ProcessUnitCmd(HttpListenerContext context)
+      {
+         throw new NotImplementedException();
+      }
+
+      public void TotalClients(long noOfClients)
+      {
+         throw new NotImplementedException();
+      }
+
+      public UnitCmd ProcessUnitCmd(LibCommProtoMsgType msgType, IClientInfo clientInfo, UnitCmd message = null)
+      {
+         throw new NotImplementedException();
+      }
+   }
+
+
+   public class logAxePipeServer : IMessageReceiver, IProtoProcessorProcessClients, IMessageExchanger
+   {
+      private ILibALogger _logger;
+      private ILogEngine _engine;
+      private MessageExchangeHelper _messenger;
+      private readonly string _appRootPath;
+      CommonFunctionality _commonFunctionality;
+      private List<IFileObject> _lst = new List<IFileObject>();
+      Dictionary<string, byte[]> _cachedFiles = new Dictionary<string, byte[]>();
+      //Dictionary<string, >
+      IDLServer _libPipeServer;
+      private SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
+      private bool _exitOnLastClient = false;      
+      class ViewData
+      {
+         public LogFrame Frame { get; set; } = null;
+         public TermFilter Filter { get; set; } = new TermFilter();
+      }
+      Dictionary<string, WebFrame> _viewData = new Dictionary<string, WebFrame>();
+      public logAxePipeServer(ILibALogger logger, ILogEngine engine, string pipeName, CommonFunctionality commonFunctionality)
+      {
+         _logger = logger;
+         _commonFunctionality = commonFunctionality;
+         _engine = engine;
+         _engine.RegisterMessageExchanger(this);
+         // _messenger = new MessageExchangeHelper(_engine.MessageBroker, this);
+         _libPipeServer = new PipeServer(
+            logger: Logging.GetLogger("srv"),
+            processor: this,
+            pipeName
+            ); 
+      }
+
+      public void GetMessage(ILogAxeMessage message)
+      {
+         switch (message.MessageType)
+         {
+            case LogAxeMessageEnum.NewViewAnnouncement:
+               {
+                  foreach (var v in _viewData)
+                  {
+                     var view = v.Value;
+                     view.SetFrame(_engine.Filter(view.Filter));
+                  }
+                  _libPipeServer.BroadCast(new UnitCmd("refreshView", "all", responseStatus: WebHelper.RespSuccess));
+               }
+               break;
+         }
+      }
+
+      public void Start()
+      {
+         CancellationTokenSource cts = new CancellationTokenSource();
+         _libPipeServer.RunForever(cts.Token);
+      }
+
+      public UnitCmd ProcessUnitCmd(LibCommProtoMsgType msgType, IClientInfo clientInfo, UnitCmd message = null)
+      {
+         try
+         {
+            
+            if (msgType != LibCommProtoMsgType.Msg || message == null)
+               return null;
+            //if(message.OpCode != WebFrameWork.CMD_GET_LINES)
+            //   _logger?.Debug($"processing, {message.OpCode}");
+            switch (message.OpCode)
+            {  
+               case WebFrameWork.CMD_SET_REGISTER:
+                  {  
+                     message.Status = WebHelper.RespSuccess;
+                     var registration = Utils.FromJson<RegisterClient>(message.Value.ToString());
+                     _logger?.Debug($"{nameof(WebFrameWork.CMD_SET_REGISTER)}, already registered: {_viewData.ContainsKey(registration.Name)}, client: {registration.Name}");
+                     if (!_viewData.ContainsKey(registration.Name))
+                     {  
+                        _viewData[registration.Name] = new WebFrame(registration.Name, _engine.GetMasterFrame());
+                     }
+
+                     //return GetLogLines(registration.Name, 0, 10);
+                     return  new UnitCmd(WebFrameWork.CMD_SET_INFO, message.UID, _viewData[message.UID], responseStatus: WebHelper.RespSuccess) ;
+                  }
+               case WebFrameWork.CMD_SET_FILES:
+                  {
+                     var infoOfDiskFiles = message.GetData<UnitCmdAddDiskFiles>();
+                     _logger?.Debug($"{nameof(WebFrameWork.CMD_SET_FILES)}, files {infoOfDiskFiles.FilePaths.Length}");                     
+                     _engine.AddFiles(paths: infoOfDiskFiles.FilePaths, processAsync: true, addFileAsync: true);
+                     break;
+                  }
+               case WebFrameWork.CMD_BST_NEW_VIEW:
+                  {  
+                     _logger?.Debug($"{nameof(WebFrameWork.CMD_BST_NEW_VIEW)}, setting new view on {message.UID}, getting master frame");
+                     _viewData[message.UID].SetFrame(_engine.GetMasterFrame());
+                     return new UnitCmd(WebFrameWork.CMD_SET_INFO, message.UID, _viewData[message.UID], responseStatus: WebHelper.RespSuccess);
+                  }
+               case WebFrameWork.CMD_SET_INFO:
+                  {
+                     _logger?.Debug($"{nameof(WebFrameWork.CMD_SET_INFO)}, setting info.");
+                     return new UnitCmd(WebFrameWork.CMD_SET_INFO, message.UID, _viewData[message.UID], responseStatus: WebHelper.RespSuccess);
+                  }
+               case WebFrameWork.CMD_GET_LINES:
+                  {
+                     var lineInfo = message.GetData<UnitCmdGetLines>();
+                     return GetLogLines(message.UID, lineInfo.StartLine, lineInfo.Length);                     
+                  }
+               case WebFrameWork.CMD_SET_FILTER:
+                  {
+                     var filter = message.GetData<TermFilter>();
+                     _logger?.Debug($"{nameof(WebFrameWork.CMD_SET_FILTER)}, {filter}");
+                     _viewData[message.UID].SetFrameAndFilter(_engine.Filter(filter), filter);
+                     return new UnitCmd(WebFrameWork.CMD_SET_INFO, message.UID, _viewData[message.UID], responseStatus: WebHelper.RespSuccess);
+                  }
+               case WebFrameWork.CMD_SET_CLEAR:
+                  {
+                     _logger?.Debug($"{nameof(WebFrameWork.CMD_SET_CLEAR)}, clear all");
+                     _engine.Clear();
+                     BroadCast(new UnitCmd(opCode: WebFrameWork.CMD_BST_NEW_VIEW, name: WebFrameWork.CLIENT_BST_ALL));
+                     return null;
+                  }
+               case WebFrameWork.CMD_GET_FILTER_THEME_INFO:
+                  {
+                     _logger?.Debug($"{nameof(WebFrameWork.CMD_GET_FILTER_THEME_INFO)}, ");
+                     _libPipeServer.Send(clientInfo, new UnitCmd(WebFrameWork.CMD_SET_FILTER_THEME_INFO, message.UID,
+                        new UnitCmdGetThemeFilterVersionInfo()
+                        {
+                           VersionInfo = _commonFunctionality.GetVersionString(),
+                           ListFilterNames = _commonFunctionality.GetFilters(),
+                           ListThemeNames = _commonFunctionality.GetThemes(),
+                           CurrentConfigUI = _commonFunctionality.GetTheme(CommonFunctionality.UserDefaultThemeName)
+                        }, responseStatus: WebHelper.RespSuccess));
+                     BroadCast(new UnitCmd(opCode: WebFrameWork.CMD_BST_NEW_THEME, name: WebFrameWork.CLIENT_BST_ALL));
+                     return null;
+                  }
+               case WebFrameWork.CMD_SAVE_CONFIG:
+                  _logger?.Debug($"{nameof(WebFrameWork.CMD_SAVE_CONFIG)}, ");
+                  var config = message.GetData<ConfigUI>();
+                  _commonFunctionality.SaveTheme(config);
+                  _libPipeServer.Send(clientInfo, new UnitCmd(WebFrameWork.CMD_SET_FILTER_THEME_INFO, message.UID,
+                        new UnitCmdGetThemeFilterVersionInfo()
+                        {
+                           VersionInfo = _commonFunctionality.GetVersionString(),
+                           ListFilterNames = _commonFunctionality.GetFilters(),
+                           ListThemeNames = _commonFunctionality.GetThemes(),
+                           CurrentConfigUI = _commonFunctionality.GetTheme(CommonFunctionality.UserDefaultThemeName)
+                        }, responseStatus: WebHelper.RespSuccess));                  BroadCast(new UnitCmd(opCode: WebFrameWork.CMD_BST_NEW_THEME, name: WebFrameWork.CLIENT_BST_ALL));
+                  return null;
+               case WebFrameWork.CMD_CLIENT_BST:
+                  _logger?.Debug($"{nameof(WebFrameWork.CMD_CLIENT_BST)}, broadcast request.");
+                  var msg = message.GetData<UnitCmd>();
+                  BroadCast(msg);
+                  return null;
+
+               case WebFrameWork.CMD_SAVE_FILTER:
+                  {
+                     _logger?.Debug($"{nameof(WebFrameWork.CMD_SAVE_FILTER)}, broadcast request.");
+                     var filter = message.GetData<TermFilter>();
+                     _commonFunctionality.SaveFilter(filter.Name, filter);                     
+                     BroadCast(new UnitCmd(opCode: WebFrameWork.CMD_BST_NEW_THEME, name: WebFrameWork.CLIENT_BST_ALL));
+                     break;
+                  }
+
+               default:
+                  //message.Value = null;
+                  //message.Status = WebHelper.RespFailed;
+                  _logger?.Error($"{message.OpCode}, Command does not exists.");
+                  SetFailed(message, $"{message.OpCode}, Command does not exists.");
+                  return message;
+
+            }
+
+         }
+         catch (Exception ex)
+         {
+            _logger.Error($"{msgType}, {clientInfo.ID}");
+            _logger.Error(ex.ToString());
+            message.Value = null;
+            message.Status = WebHelper.RespFailed;
+            return message;
          }
 
-         [JsonProperty("op")]
-         public string OpCode { get; set; }
-         [JsonProperty("name")]
-         public string Name { get; set; }
-         [JsonProperty("value")]
-         public object Value { get; set; }
+         //message.Value = null;
+         //message.Status = WebHelper.RespSuccess;
+         //return message;
+         return null;
       }
 
-      class CmdLines
+      private UnitCmd GetLogLines(string uid, int startLine, int length) {
+         var lines = new WebLogLines(uid, length);
+         lines.StartLogLine = startLine;
+         for (int ndx = startLine; ndx < (startLine+ length); ndx++)
+         {
+            if (ndx >= _viewData[uid].TotalLogLines)
+            {
+               break;
+            }
+            lines.LogLines.Add(_engine.GetLogLine(_viewData[uid].Frame.TranslateLine(ndx)));
+         }
+         return new UnitCmd(WebFrameWork.CMD_SET_LINES, uid, lines, responseStatus: WebHelper.RespSuccess);
+      }
+
+      private void SetFailed(UnitCmd message, string reason)
       {
-         [JsonProperty("s")]
-         public int StartLine { get; set; }
-         [JsonProperty("l")]
-         public int Length { get; set; }
-         
+         message.Value = new Dictionary<string, object>() { { "reason", reason } };
+         message.Status = WebHelper.RespFailed;
       }
 
-      
+      public void ProcessTotalClients(int totalClients)
+      {
+         if (totalClients == 0)
+         {
+            _logger?.Info($"Detected no clients connected, signal to close. exitOnLastClient {_exitOnLastClient}");
+            //TODO : enable the ability to close a server.
+            //if(_exitOnLastClient)
+            //   _libWebServer.Stop();
+         }
+      }
+
+      public static void Test()
+      {
+         //var client = new WebSocketClientTest(
+         //   bufferSize:4096, 
+         //   logger: new WebLogProxy(new NamedLogger("ws")));
+         //client.ProcessWebSocket().Wait();
+      }
+
+      public void ProcessUnitCmd(HttpListenerContext context)
+      {
+         throw new NotImplementedException();
+      }
+
+      public void TotalClients(long noOfClients)
+      {
+         _logger?.Error("Not handlering TotalCliets");
+      }
+
+      public void BroadCast(UnitCmd cmd)
+      {
+         if (cmd == null) {
+            _logger?.Error("Trying to send null");
+            return;
+         }
+         if (cmd.OpCode == WebFrameWork.CMD_BST_NEW_VIEW)
+         {
+            foreach (var view in _viewData)
+            {
+               view.Value.SetFrame(_engine.GetMasterFrame());
+            }
+         }
+
+         _logger?.Debug($"OpCode : {cmd.OpCode}");
+         _libPipeServer.BroadCast(cmd);
+      }
    }
+
+
 }

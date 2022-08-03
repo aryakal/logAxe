@@ -8,9 +8,10 @@ using System.IO;
 using System.Text;
 using System.Collections.Generic;
 using System.Reflection;
-using logAxeEngine.Common;
-using logAxeCommon;
+
+using logAxeCommon.Interfaces;
 using logAxeEngine.Interfaces;
+using libALogger;
 
 namespace logAxeEngine.Engines
 {
@@ -21,7 +22,11 @@ namespace logAxeEngine.Engines
    {
       private Dictionary<string, ILogParser> _plugins = new Dictionary<string, ILogParser>();
       private StringBuilder _currentInformation = new StringBuilder();
-      private NamedLogger _logger = new NamedLogger("plgMng");
+      private ILibALogger _logger;
+
+      public PluginManager() {
+         _logger = Logging.GetLogger("plgMng");
+      }
 
       #region Implements IPluginManager
       public ILogParser GuessParser(string fileName)

@@ -1,39 +1,48 @@
 # logAxe
 
-| method | url | remark |
-|----------|-|-|
-| get| /logAxe/ or / | redirects to the main /logAxe/ui/mainUI.html
-| get| /logAxe/ui/mainUI.html | gets the main ui.
-| get| /logAxe/ui/<b>filepath</b> | gets any file from the application resource folder.
-| get| /logAxe/vw?op=createNew | creates a new view and gives the id back.
-| get| /logAxe/vw?op=info&n=view1 | gets the current info
-| get| /logAxe/vw?op=line&n=view1&s=0&l=10| gets the loglin(e) from the view.
-| get| /logAxe/vw?op=filter&n=view1 | gets current filter info
-| post| /logAxe/vw?op=filter&n=view1 | sets the current filter.
-| post| /logAxe/openView | Opens a new window with without any filter.
-
-#  Files currently loaded.
+logAxe application is logViewer and logAnalysis application. It can read any log file provided there is a plugin which can translate from the native format to logAxe structures.
 
 
-| method | url | remark |
-|----------|-|-|
-| post| /logAxe/files?op=addFile | { paths: [file path as list] } | upload the file path to server.
-| post| /logAxe/files?op=lst | { paths: [ {n: name, p: path, pl: plugin, l: load status} ] } | upload the file path to server.
+[License](LICENSE): MIT license. 
+In summary please use the application as you see fit, no individual or commerical restriction. 
 
-# file browser
 
-| method | url | request |  response |
-|----------|-|-|-|
-| post| /logAxe/fileBrowser |  { op: lst, path: <b>Path of the folder</b> } | { op:lst, paths: [{ p: path, n: name, t: d/f }] }
-| post| /logAxe/fileBrowser |  { op: fav } | { op:fav, paths: [{ n: name}] }
-| post| /logAxe/fileBrowser |  { op: addFav, n: name, p: path } | { op:fav}
+As with everything else in the world documenation started late. Will document every feature and thoughts.
 
-#  ~~not implemented~~
+## Feature summary
+* File loading 
+    * Drag and drop of files on the UI.
+    * Load files from Manage Files UI.
+    * Supported files genere
+        * Log files        
+        * zip files containing log files
+        * folders containing log file and zip files.
+* File Exporting
+    * When you click a log line eg error line you can export the corresponding file.
+    * 
+* Filters
+    * Only see the lines with certain keywords.
+    * Block the lines which certain keywods
+* 
 
-| method | url | remark |
-|----------|-|-|
-| get| /logAxe/config | gets the current configuration
-| post| /logAxe/config | sets the current configuration
+
+### List of features
+| version |  Feature description |
+| ------ | ------------------- |
+| 0.0.1| [Drag and drop files, zip files, folder application ](feature-dragDrop.md) |
+| 0.0.2| [Filters.](feature-filters.md) |
+| 0.0.2| [Clearing files from memory.](feature-general.md)|
+| 0.2.7| [Exporting files.](feature-exportFiles.md) |
+
+
+
+### Experiment
+| version | Feature description |
+| ------ | ------------------- |
+| 0.2.0 | [web api](feature-webApi.md) |
+
+### Future features
+
 
 
 

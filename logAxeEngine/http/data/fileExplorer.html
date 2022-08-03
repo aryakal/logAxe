@@ -4,81 +4,66 @@
 //--------------------------------------------------------------------------------------------------------------------
 //=====================================================================================================================-->
 <HTML>
-
-<HEAD>
-    <title>FileExplorer</title>
-    <link rel="icon" href="favicon.png" />
-    <script src="js/jquery.js" type="text/javascript"></script>
-    <script src="js/logAxeFileExplorer.js" type="text/javascript"></script>
-    <script src="js/logAxeFileTransfer.js" type="text/javascript"></script>
-    <link rel="stylesheet" href="fileExplorer.css">
-    <style>
-        html,
-        body {
-            height: 100%;
-            width: 100%;
-            overflow: 'hidden';
-            -webkit-scrollbar: 'hidden';
-            background-color: whitesmoke;
-            font-size: 13px;
-            font-family: Calibri;
-            color: black;
-            padding: 0;
-            margin: 0;
-        }
-    </style>
-</HEAD>
-
-<body>
-
-    <div class="feDialog">
-        <div class="feRow">
-            <input type="text" id="feurl" value="path" class="feUrl1" />
+    <HEAD>
+        <title>FileExplorer</title>
+        <link rel="icon" href="favicon.png"/>
+        <script src="js/jquery.js" type="text/javascript"></script>
+        <script src="js/logAxeFileExplorer.js" type="text/javascript"></script>
+        <script src="js/logAxeFileTransfer.js" type="text/javascript"></script>
+        <link rel="stylesheet" href="fileExplorer.css">
+        <style>
+            html, body {
+                height: 100%;
+                width: 100%;
+                overflow: 'hidden';
+                -webkit-scrollbar: 'hidden';
+                background-color: whitesmoke;
+                font-size: 13px;
+                font-family: Calibri;
+                color: black;
+                padding: 0;
+                margin: 0;
+            }
+        </style>
+    </HEAD>
+    <body>
+        <div class="feDialog">
+            <div class="feRow">
+                <input type="text" id="feurl" value="path" class="feUrl1"/>
+            </div>
+            <div class="feRow rowFull">
+                <div class="feFavCol" id="feFavPane"></div>
+                <div class="feColumn" id="feListPane"></div>
+                <div class="feColumn" id="feSelPane"></div>
+            </div>
         </div>
-        <div class="feRow rowFull">
-            <div class="feFavCol" id="feFavPane"></div>
-            <div class="feColumn" id="feListPane"></div>
-            <div class="feColumn" id="feSelPane"></div>
-        </div>
-    </div>
-    <button onclick="getFile1()"></button>
+        <button onclick="getFile1()"></button>
+        <div id="fileUploadTest" style="width: 100px; height: 100px;background-color: green;"></div>
+        <script>
+            let fileHandle;
 
-    <div id="fileUploadTest" style="width: 100px; height: 100px;background-color: green;"></div>
+            const pickerOpts = {
+                multiple: true
+            };
 
+            async function getFile1() {
+                // open file picker
+                [fileHandle] = await window.showOpenFilePicker(pickerOpts);
+                console.log(fileHandle);
 
+                if (fileHandle.kind === 'file') {
+                    console.log(fileHandle[0].getFile())
+                } else if (fileHandle.kind === 'directory') {// run directory code
+                }
 
-
-    <script>
-        let fileHandle;
-
-        const pickerOpts = {
-            multiple: true
-        };
-
-
-        async function getFile1() {
-            // open file picker
-            [fileHandle] = await window.showOpenFilePicker(pickerOpts);
-            console.log(fileHandle);
-
-
-            if (fileHandle.kind === 'file') {
-                console.log(fileHandle[0].getFile())
-            } else if (fileHandle.kind === 'directory') {
-                // run directory code
             }
 
-        }
+            $(document).ready(function() {
+                var viewInfog = new LogAxeFileExplorer("fileExplorer","feurl","feFavPane","feListPane","feSelPane","/logAxe/");
+                viewInfog.get_fav();
+                var fileTransfer = new LogAxeFileUploader("/logAxe/","fileUploadTest");
 
-        $(document).ready(function () {
-            var viewInfog = new LogAxeFileExplorer("fileExplorer", "feurl", "feFavPane", "feListPane", "feSelPane", "/logAxe/");
-            viewInfog.get_fav();
-            var fileTransfer = new LogAxeFileUploader("/logAxe/", "fileUploadTest");
-
-
-
-        });
-    </script>
-</body>
-
+            });
+        </script>
+    </body>
 </HTML>

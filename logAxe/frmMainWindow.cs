@@ -3,7 +3,6 @@
 //--------------------------------------------------------------------------------------------------------------------
 //=====================================================================================================================
 
-using logAxeEngine.Interfaces;
 using System;
 using System.Windows.Forms;
 
@@ -13,15 +12,13 @@ namespace logAxe
    {
       public frmMainWindow()
       {
-         InitializeComponent();
-
-         if (ViewCommon.Engine != null)
+         InitializeComponent();      
+         if (ViewCommon.Channel != null)
          {
             new HelperAttachFileDrop(this);
             SetTitle();
          }
-         this.Icon = Properties.Resources.axe_icon_svg_128;
-         cntrlTextViewer1.SetMasterView();
+         this.Icon = Properties.Resources.axe_icon_svg_128;         
          cntrlTextViewer1.OnNewNotepadChange += TitleChangeEvent;
       }
 
@@ -31,18 +28,16 @@ namespace logAxe
       public string FrmID { get; set; } = "Main";
       public string WindowTitle { get; set; } = "logAxe - <version> - ";
 
-      void TitleChangeEvent(ILogAxeMessage message)
+      void TitleChangeEvent(CntrlTextViewerMsg msg)
       {
          this.Invoke(new Action(() =>
          {
-            switch (message.MessageType)
+            switch (msg)
             {
-               case LogAxeMessageEnum.NewMainFrmAddRemoved:
-
+               case CntrlTextViewerMsg.SetTitle:
                   SetTitle();
-
                   break;
-               case LogAxeMessageEnum.AwakeAllWindows:
+               case CntrlTextViewerMsg.AwakeWindows:
                   WindowState = WindowState == FormWindowState.Minimized ? FormWindowState.Normal : FormWindowState.Minimized;
                   break;
             }

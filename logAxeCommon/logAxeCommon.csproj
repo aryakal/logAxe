@@ -19,4 +19,9 @@
 		<PackageReference Include="SharpZipLib" Version="1.3.3" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <ProjectReference Include="..\libACommunication\libACommunication.csproj" />
+	  <ProjectReference Include="..\libALogger\libALogger.csproj" />
+	</ItemGroup>
+
 </Project>

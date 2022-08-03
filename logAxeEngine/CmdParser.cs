@@ -27,14 +27,24 @@ namespace logAxeEngine
          return _cmds[cmdName].IsSet;
       }
 
+      public void SetEnabledValue(string cmdName, bool value)
+      {
+         _cmds[cmdName].IsSet = value;
+      }
+
       public string GetString(string cmdName)
       {
-         return (string)_cmds[cmdName].Value;
+         return (string)GetData(cmdName);
       }
 
       public int GetInt(string cmdName)
       {
-         return (int)_cmds[cmdName].Value;
+         return (int)GetData(cmdName);
+      }
+
+      private object GetData(string cmdName)
+      {
+         return _cmds[cmdName].Value == null ? _cmds[cmdName].DefaultValue : _cmds[cmdName].Value;
       }
 
       public void Parse(string[] argc)
@@ -55,6 +65,18 @@ namespace logAxeEngine
                if (!cmd.IsBoolean)
                {
                   ndx++;
+                  if (ndx >= argc.Length || argc[ndx].StartsWith("--"))
+                  {
+                     if (cmd.EnableUseDefault)
+                     {
+                        continue;
+                     }
+
+                     Console.WriteLine($"\nerror, cmd [{cmd.Cmd}] expected a value\n");
+                     printHelp = true;
+                     break;
+
+                  }                  
                   cmd.Value = Convert.ChangeType(argc[ndx], cmd.ValueType);
                }
                ndx++;
@@ -75,7 +97,11 @@ namespace logAxeEngine
             Array.Sort(lst);
             foreach (var cmd in lst)
             {
-               Console.WriteLine($"{cmd.PadRight(20)} {_cmds[cmd].CmdHelper}");
+               if(_cmds[cmd].ValueType == typeof(bool))
+                  Console.WriteLine($"{cmd.PadRight(15)}       {_cmds[cmd].CmdHelper}");
+               else
+                  Console.WriteLine($"{cmd.PadRight(15)} <val> {_cmds[cmd].CmdHelper}");
+
             }
          }
       }
@@ -86,6 +112,7 @@ namespace logAxeEngine
    {
       public string Cmd { get; set; }
       public string CmdHelper { get; set; }
+      public bool EnableUseDefault { get; set; }
       public bool IsBoolean => (ValueType == typeof(bool));
       public object Value { get; set; }
       public Type ValueType { get; set; }

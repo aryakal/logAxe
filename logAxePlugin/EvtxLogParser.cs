@@ -7,6 +7,8 @@ using System;
 using System.Text;
 using System.Globalization;
 using logAxeCommon;
+using logAxeCommon.Interfaces;
+
 
 namespace logAxePlugin
 {
@@ -59,6 +61,8 @@ namespace logAxePlugin
                       TimeStamp = DateTime.ParseExact(wrds[1], "M/d/yyyy h:mm:ss tt", CultureInfo.InvariantCulture),
                       LogType = tp,
                       Msg = wrds[5],
+                      Category = wrds[2],
+                      ThreadNo = int.Parse(wrds[3]),
                       LineNumber = lineNo
                    }                   
                    );

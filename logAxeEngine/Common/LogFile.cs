@@ -6,6 +6,7 @@
 using System.Collections.Generic;
 
 using logAxeCommon;
+using logAxeCommon.Interfaces;
 using logAxeEngine.Storage;
 using logAxeEngine.Interfaces;
 

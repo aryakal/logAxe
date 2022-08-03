@@ -9,7 +9,7 @@ using System.Linq;
 using System.Drawing;
 using logAxeCommon;
 using System.Windows.Forms;
-using logAxeEngine.Common;
+
 
 namespace logAxe
 {
@@ -216,14 +216,16 @@ namespace logAxe
       public float ScrollBarLineWidth { get; } = 3;
       public bool ScrollBarIsCircle { get; } = true;
       public float ScrollBarLocation { get; } = 0;
-      public float ScrollBarCirclRadius { get; set; } = 7F;
+      public float ScrollBarCircleRadius { get; set; } = 7F;
       public float ScrollHeight { get; } = 0;
       public double ScrollPagesPerPixel { get; set; }
       public RectangleF CirclePoint { get; set; } = new RectangleF(0, 0, 0, 0);
       public bool Dirty { get; set; }
-      public LogFrame ViewFrame { get; set; }
+      public WebFrame ViewFrame { get; set; }
       public bool ShowTableHeader { get; set; }
       public SelectedItems SelectedLine { get; set; } = new SelectedItems();
+
+      public WebLogLines WebLogLinesData { get; set; }
       public enum ShowTime { 
          Default,
          StartTime
@@ -232,16 +234,21 @@ namespace logAxe
       public ShowTime ShowTimeSelected { get; set; } = ShowTime.Default;
       public DateTime ShowTime_Default_StartTime { get; set; } = DateTime.Now;
 
-      private MessageExchangeHelper _msgHelper;
+      //private MessageExchangeHelper _msgHelper;
       private int _currentSkeletonLine = 0;
 
-      public TableSkeleton(PointF point, SizeF size, MessageExchangeHelper msgHelper) : base(point, size)
+      //public TableSkeleton(PointF point, SizeF size, MessageExchangeHelper msgHelper) : base(point, size)
+      //{
+      //   _msgHelper = msgHelper;
+      //}
+
+      public TableSkeleton(PointF point, SizeF size) : base(point, size)
       {
-         _msgHelper = msgHelper;
+         
       }
       public void Resize(SizeF size)
       {
-         var config = ViewCommon.UserConfig;
+         var config = ViewCommon.GetConfig();
 
          ShowTableHeader = config.ShowTableHeader;
          //this["LineNo"].Visible = config.ShowLineNo;
@@ -284,11 +291,13 @@ namespace logAxe
             ScrollBarStopLoc = new PointF(x, y1);
             ScrollPagesPerPixel = TotalDataLines == 0 ? 0 : (TotalPages / (y1 - y));
             ScrollBarArea = new RectangleF(
-                x - ScrollBarCirclRadius,
-                y - ScrollBarCirclRadius,
-                Size.Width - (x + ScrollBarCirclRadius),
-                (y1 - y) + (ScrollBarCirclRadius * 2));
+                x - ScrollBarCircleRadius,
+                y - ScrollBarCircleRadius,
+                Size.Width - (x + ScrollBarCircleRadius),
+                (y1 - y) + (ScrollBarCircleRadius * 2));
          }
+
+         Dirty = true;
       }
       public void Resize(SizeF size, int FontHeightPad, bool showTableHeader, Font tableHeaderFont, string timeStampFormat, int PadBetweenCol)
       {
@@ -331,10 +340,10 @@ namespace logAxe
             ScrollBarStopLoc = new PointF(x, y1);
             ScrollPagesPerPixel = TotalDataLines == 0 ? 0 : (TotalPages / (y1 - y));
             ScrollBarArea = new RectangleF(
-                x - ScrollBarCirclRadius,
-                y - ScrollBarCirclRadius,
-                Size.Width - (x + ScrollBarCirclRadius),
-                (y1 - y) + (ScrollBarCirclRadius * 2));
+                x - ScrollBarCircleRadius,
+                y - ScrollBarCircleRadius,
+                Size.Width - (x + ScrollBarCircleRadius),
+                (y1 - y) + (ScrollBarCircleRadius * 2));
          }
       }
       public void ChangeScrollMove(int y)
@@ -431,10 +440,11 @@ namespace logAxe
          SetPageStats();
 
       }
-      public void SetViewFrame(LogFrame frame)
+      public void SetViewFrame(WebFrame frame)
       {
          ViewFrame = frame;
          SelectedLine.Resize(ViewFrame.TotalLogLines);
+         Dirty = true;
       }
       /// <summary>
       /// Get the actual line data
@@ -444,17 +454,19 @@ namespace logAxe
       public (bool, LogLine) GetLine(int lineNumber)
       {
          return (SelectedLine.SelectedLines.Length == 0 ? false : SelectedLine.SelectedLines[lineNumber],
-                 ViewCommon.Engine.GetLogLine(ViewFrame.TranslateLine(lineNumber)));
+                 WebLogLinesData.LogLines[lineNumber - WebLogLinesData.StartLogLine]);
       }
       public (bool, LogLine) GetSelectedLine()
       {
-         if (SelectedLine.TotalSelected == 0 || SelectedLine.LastSelected == LogLine.INVALID)
-            return (false, null);
+         return (false, null);
+         //TODO : fix going to be difficult.
+         //if (SelectedLine.TotalSelected == 0 || SelectedLine.LastSelected == LogLine.INVALID)
+         //   return (false, null);
 
-         return (true,
-             ViewCommon.Engine.GetLogLine(
-                 ViewFrame.TranslateLine(
-                     SelectedLine.LastSelected)));
+         //return (true,
+         //    ViewCommon.Engine.GetLogLine(
+         //        ViewFrame.TranslateLine(
+         //            SelectedLine.LastSelected)));
       }
       
       public (bool, TimeSpan) GetSelectedLineDiff()
@@ -462,10 +474,13 @@ namespace logAxe
          if (SelectedLine.TotalSelected < 2 || SelectedLine.LastSelected == LogLine.INVALID)
             return (false, new TimeSpan(0));
          var lines = SelectedLine.GetSelectedLines();
-         var first = ViewCommon.Engine.GetLogLine(ViewFrame.TranslateLine(lines[0]));
-         var last = ViewCommon.Engine.GetLogLine(ViewFrame.TranslateLine(lines[lines.Length-1]));
+
+         //TODO : change the timespan
+         return (true, new TimeSpan(0));
+         //var first = ViewCommon.Engine.GetLogLine(ViewFrame.TranslateLine(lines[0]));
+         //var last = ViewCommon.Engine.GetLogLine(ViewFrame.TranslateLine(lines[lines.Length-1]));
          
-         return (true, last.TimeStamp - first.TimeStamp);
+         //return (true, last.TimeStamp - first.TimeStamp);
 
       }
 
@@ -476,10 +491,11 @@ namespace logAxe
          if (SelectedLine.TotalSelected == 0 || SelectedLine.LastSelected == LogLine.INVALID)
             return lst;
          
-         foreach (var line in SelectedLine.GetSelectedLines())
-         {
-            lst.Add(ViewCommon.Engine.GetLogLine(ViewFrame.TranslateLine(line)));
-         }
+         //TODO : this is going to be tough.
+         //foreach (var line in SelectedLine.GetSelectedLines())
+         //{
+         //   lst.Add(ViewCommon.Engine.GetLogLine(ViewFrame.TranslateLine(line)));
+         //}
 
          return lst;
 
@@ -490,13 +506,14 @@ namespace logAxe
       /// <returns></returns>
       public int[] GetGlobalLineIndexForSeletedLines()
       {
-         var globalLine = new List<int>();
-         var selectedLines = SelectedLine.GetSelectedLines();
-         foreach (var line in selectedLines)
-         {
-            globalLine.Add(ViewFrame.TranslateLine(line));
-         }
-         return globalLine.ToArray();
+         //var globalLine = new List<int>();
+         //var selectedLines = SelectedLine.GetSelectedLines();
+         //foreach (var line in selectedLines)
+         //{
+         //   globalLine.Add(ViewFrame.TranslateLine(line));
+         //}
+         //return globalLine.ToArray();
+         throw new Exception("implement");
       }
       /// <summary>
       /// Gets the index of the selected files on the view.
@@ -514,12 +531,17 @@ namespace logAxe
          return fileList.Distinct().ToArray();
       }
 
+      public float GetYPos(int lineNumber)
+      {
+         return (RowsHeight * (lineNumber + 1)) + (Location.Y + OffsetStringData);
+      }
+
       private bool ResetCurrentSelectedLine(int worldLine, bool cntrlPressed = false, bool shiftPressed = false)
       {
          if (worldLine >= 0 && worldLine < ViewFrame.TotalLogLines)
          {
             ShowGlobalLine = false;
-            _msgHelper.PostMessage(new logAxeEngine.EventMessages.CurrentGlobalLine() { GlobalLine = ViewFrame.TranslateLine(worldLine) }); ;
+            //_msgHelper.PostMessage(new logAxeEngine.EventMessages.CurrentGlobalLine() { GlobalLine = ViewFrame.TranslateLine(worldLine) }); ;
 
             if (cntrlPressed)
             {

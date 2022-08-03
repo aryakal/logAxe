@@ -4,12 +4,16 @@
 //=====================================================================================================================
 
 using System;
-using logAxeEngine.Common;
 using logAxeEngine.Engines;
-using logAxeEngine.Interfaces;
-using logAxe.http;
 using System.IO;
-using Newtonsoft.Json;
+
+using logAxeCommon;
+using logAxe.http;
+using System.Net.WebSockets;
+using System.Threading;
+using libACommunication;
+using libALogger;
+using System.Threading.Tasks;
 
 namespace logAxeEngine
 {
@@ -17,85 +21,92 @@ namespace logAxeEngine
    {
       static void Main(string[] args)
       {
+         ILibALogger logger = Logging.GetLogger("main"); ;
+         logger.Info("Starting program");
          try
          {
-            new LogAxeEngineMain().Init(args);
+            new LogAxeEngineMain().Init(args, logger);
          }
-         catch (Exception) 
-         { 
+         catch (Exception ex) 
+         {
+            logger.Error(ex.ToString());
          }
+         logger.Info("Stoping program");
       }
-
-      private static void Process_Exited(object sender, EventArgs e)
+      private void Init(string [] args, ILibALogger logger)
       {
-         
-      }
-
-      ILogEngine _engine;
-      logAxeHttpServerProxy _http;
-      LogAxeConfig _config;
-      NamedLogger _logger = new NamedLogger("main");
-
-      private void Init(string [] args)
-      {
-         
-
-         var cmdParser = new CmdParser();         
-         cmdParser.AddCommand(new CmdInfo() { Cmd = "--debug", ValueType = typeof(bool), CmdHelper = "bool, prints debug message" });
-         cmdParser.AddCommand(new CmdInfo() { Cmd = "--debug-color", ValueType = typeof(bool), CmdHelper = "bool, prints debug message with color" });
-         cmdParser.AddCommand(new CmdInfo() { Cmd = "--debug-http", ValueType = typeof(bool), CmdHelper = "bool, prints the log from libWebServer" });
-         cmdParser.AddCommand(new CmdInfo() { Cmd = "--http", ValueType = typeof(bool), CmdHelper = "bool, starts http sever" });
-         cmdParser.AddCommand(new CmdInfo() { Cmd = "--start-browser", ValueType = typeof(bool), CmdHelper = "bool, starts http sever" });
-         cmdParser.AddCommand(new CmdInfo() { Cmd = "--port", ValueType = typeof(int), DefaultValue = 8080, CmdHelper = "int, default 8080 using this as the default port number to start with." });
-         cmdParser.AddCommand(new CmdInfo() { Cmd = "--config-file", ValueType = typeof(string), DefaultValue = "logAxeConfig.json", CmdHelper = "configuration file to be used by log axe" });
+         var cmd_workspace = "--wkp";
+         var cmd_workspace_local = "--wkp-win";
+         var cmd_debug_all = "--debug-all";
+         var cmd_debug = "--debug";
+         //var cmd_debug_http = "--debug-http";
+         var cmd_port = "--port";
+         var cmd_start_browser = "--start-browser";
+         var cmd_server_pipe = "--server-pipe";
+         //var cmd_server_http = "--server-http";
 
 
-         // args = new string[] { "--debug-color", "--http", "--start-browser" }; // start with browser
-         // args = new string[] { "--debug", "--http", "--start-browser", "--config-file", "logAxeConfig.json" }; // start without browser       
+         var cmdParser = new CmdParser();
+         cmdParser.AddCommand(new CmdInfo() { Cmd = cmd_workspace, ValueType = typeof(string), DefaultValue = ".", CmdHelper = "configuration file to be used by log axe" });
+         cmdParser.AddCommand(new CmdInfo() { Cmd = cmd_workspace_local, ValueType = typeof(string), DefaultValue = ".", CmdHelper = "configuraiton to use user local directory" });
+         cmdParser.AddCommand(new CmdInfo() { Cmd = cmd_debug_all, ValueType = typeof(bool), CmdHelper = "enables all debug" });
+         cmdParser.AddCommand(new CmdInfo() { Cmd = cmd_debug, ValueType = typeof(bool), CmdHelper = "enable prints debug message" });         
+         //cmdParser.AddCommand(new CmdInfo() { Cmd = cmd_debug_http, ValueType = typeof(bool), CmdHelper = "bool, prints the log from libWebServer" });
+         //cmdParser.AddCommand(new CmdInfo() { Cmd = cmd_server_http, ValueType = typeof(bool), CmdHelper = "bool, starts http sever" });
+         cmdParser.AddCommand(new CmdInfo() { Cmd = cmd_port, ValueType = typeof(int), DefaultValue = 8080, CmdHelper = "default 8080 using this as the default port number to start with." });
+         cmdParser.AddCommand(new CmdInfo() { Cmd = cmd_start_browser, ValueType = typeof(bool), CmdHelper = "starts http sever" });         
+         cmdParser.AddCommand(new CmdInfo() { Cmd = cmd_server_pipe, ValueType = typeof(string), DefaultValue = CommonFunctionality.ServerPipeRootPath, CmdHelper = "start pipe server" , EnableUseDefault=true});
          cmdParser.Parse(args);
-         _logger.Info("Staring program");
+
+         logger?.Debug($"Working directory {Directory.GetCurrentDirectory()}");
          if (cmdParser.Proceed)
          {
-            var debugEnabled = cmdParser.IsEnabled("--debug") || cmdParser.IsEnabled("--debug-color");
-            NamedLogger.PublishLogs = debugEnabled;
-            NamedLogger.PublishDebugLogs = debugEnabled;
-            NamedLogger.PublishConsoleLogs = cmdParser.IsEnabled("--debug-color");
-
-            _config = new LogAxeConfig();
-            if (cmdParser.IsEnabled("--config-file"))
-               LoadConfig(cmdParser.GetString("--config-file"));
-
-            //Start the engine then anything else.
-            
-            _engine = new LogAxeEngineManager(new LogMessageEngine(), new PluginManager());
-            _http = new logAxeHttpServerProxy(
-               logger: new NamedLogger("http"), 
-               engine: _engine,
-               debugHttp: cmdParser.IsEnabled("--debug-http")
-               );
-
-            _engine.RegisterPlugin(".");            
-            if (cmdParser.IsEnabled("--start-browser"))
+            if (cmdParser.IsEnabled(cmd_debug_all))
             {
-               _http.StartWebBrowser();
-
+               cmdParser.SetEnabledValue(cmd_debug, true);               
+               //cmdParser.SetEnabledValue(cmd_debug_http, true);
             }
-            if (cmdParser.IsEnabled("--http"))
+
+            NamedLogger.PublishDebugLogs = cmdParser.IsEnabled(cmd_debug);
+
+            var commonFunctionality = cmdParser.IsEnabled(cmd_workspace_local)? 
+               new CommonFunctionality(Logging.GetLogger("cfg")):
+               new CommonFunctionality(cmdParser.GetString(cmd_workspace), Logging.GetLogger("cfg"));
+            //TODO find alternative
+            //commonFunctionality.LoadUserConfig();
+
+            var messageEngine = new LogMessageEngine();
+            var pluginManager = new PluginManager();
+            var engine = new LogAxeEngineManager(messageEngine, pluginManager);
+            engine.RegisterPlugin(".");
+
+            //if (cmdParser.IsEnabled(cmd_server_http))
+            //{
+            //   var http = new logAxeHttpServerProxy(
+            //      logger: Logging.GetLogger("logAxe"),
+            //      engine: engine,
+            //      port: cmdParser.GetInt(cmd_port),
+            //      serverIp: "127.0.0.1",
+            //      appRootPath: "/logAxe/",
+            //      debugHttp: cmdParser.IsEnabled(cmd_debug_http));
+            //   if (cmdParser.IsEnabled("--start-browser"))
+            //   {
+            //      http.StartWebBrowser();
+            //   }
+            //   http.Start();
+            //}            
+
+            if (cmdParser.IsEnabled(cmd_server_pipe))
             {
-               
-               _http.Start();
+               var pipeServer = new logAxePipeServer(
+                  logger: Logging.GetLogger("proxy"),
+                  engine: engine,
+                  cmdParser.GetString(cmd_server_pipe),
+                  commonFunctionality
+                  );
+               pipeServer.Start();
             }
          }
       }
-      private void LoadConfig(string configFilePath)
-      {
-         if (!File.Exists(configFilePath)) {
-            _logger.Error($@"File not found creating file @ {configFilePath}");
-            File.WriteAllText(configFilePath, JsonConvert.SerializeObject(_config, Formatting.Indented));
-         };
-         _config = JsonConvert.DeserializeObject<LogAxeConfig>(File.ReadAllText(configFilePath));
-      }
    }
-
-  
 }

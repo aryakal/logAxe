@@ -31,13 +31,16 @@
          this.components = new System.ComponentModel.Container();
          this.masterPanel = new System.Windows.Forms.Panel();
          this.contextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
-         this.timeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-         this.showDefaultTimeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-         this.setStartTimeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+         this.copyLinesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+         this.copyToNotepadToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+         this.newNotepadToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
          this.filterByToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
          this.filterByThreadId = new System.Windows.Forms.ToolStripMenuItem();
          this.filterByCategoryId = new System.Windows.Forms.ToolStripMenuItem();
          this.filterByProcId = new System.Windows.Forms.ToolStripMenuItem();
+         this.timeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+         this.showDefaultTimeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+         this.setStartTimeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
          this.showLineToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
          this.showTableHeaderToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
          this.showLineNoToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -45,15 +48,16 @@
          this.showThreadIdToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
          this.showCategoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
          this.exportFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-         this.copyToNotepadToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-         this.newNotepadToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-         this.copyLinesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-         this.pnlFilterTag = new System.Windows.Forms.Panel();
-         this.btnSavedFilterDelete = new System.Windows.Forms.Button();
-         this.btnSavedFilterApply = new System.Windows.Forms.Button();
+         this.pnlFilterTag = new System.Windows.Forms.TabControl();
+         this.tbFilterLIst = new System.Windows.Forms.TabPage();
+         this.lstSavedFilter = new System.Windows.Forms.ListBox();
          this.btnSavedFilterAdd = new System.Windows.Forms.Button();
          this.txtSavedFilter = new System.Windows.Forms.TextBox();
-         this.lstSavedFilter = new System.Windows.Forms.ListBox();
+         this.btnSavedFilterDelete = new System.Windows.Forms.Button();
+         this.btnSavedFilterApply = new System.Windows.Forms.Button();
+         this.tabPage2 = new System.Windows.Forms.TabPage();
+         this.textBox1 = new System.Windows.Forms.TextBox();
+         this.checkedListBox1 = new System.Windows.Forms.CheckedListBox();
          this.pnlShowProgress = new System.Windows.Forms.Panel();
          this.lblOptmizeUpdate = new System.Windows.Forms.Label();
          this.lblIndexingUpdate = new System.Windows.Forms.Label();
@@ -120,6 +124,8 @@
          this.masterPanel.SuspendLayout();
          this.contextMenu.SuspendLayout();
          this.pnlFilterTag.SuspendLayout();
+         this.tbFilterLIst.SuspendLayout();
+         this.tabPage2.SuspendLayout();
          this.pnlShowProgress.SuspendLayout();
          this.pnlFilterSearch.SuspendLayout();
          this.pnlFuture.SuspendLayout();
@@ -160,30 +166,27 @@
          this.contextMenu.Size = new System.Drawing.Size(203, 148);
          this.contextMenu.Opening += new System.ComponentModel.CancelEventHandler(this.contextMenu_Opening);
          // 
-         // timeToolStripMenuItem
+         // copyLinesToolStripMenuItem
          // 
-         this.timeToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.showDefaultTimeToolStripMenuItem,
-            this.setStartTimeToolStripMenuItem});
-         this.timeToolStripMenuItem.Name = "timeToolStripMenuItem";
-         this.timeToolStripMenuItem.Size = new System.Drawing.Size(202, 24);
-         this.timeToolStripMenuItem.Text = "Time";
+         this.copyLinesToolStripMenuItem.Name = "copyLinesToolStripMenuItem";
+         this.copyLinesToolStripMenuItem.Size = new System.Drawing.Size(202, 24);
+         this.copyLinesToolStripMenuItem.Text = "Copy To Clipboard";
+         this.copyLinesToolStripMenuItem.Click += new System.EventHandler(this.copyLinesToolStripMenuItem_Click);
          // 
-         // showDefaultTimeToolStripMenuItem
+         // copyToNotepadToolStripMenuItem
          // 
-         this.showDefaultTimeToolStripMenuItem.Checked = true;
-         this.showDefaultTimeToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
-         this.showDefaultTimeToolStripMenuItem.Name = "showDefaultTimeToolStripMenuItem";
-         this.showDefaultTimeToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
-         this.showDefaultTimeToolStripMenuItem.Text = "Show Default Time";
-         this.showDefaultTimeToolStripMenuItem.Click += new System.EventHandler(this.showDefaultTimeToolStripMenuItem_Click);
+         this.copyToNotepadToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.newNotepadToolStripMenuItem});
+         this.copyToNotepadToolStripMenuItem.Name = "copyToNotepadToolStripMenuItem";
+         this.copyToNotepadToolStripMenuItem.Size = new System.Drawing.Size(202, 24);
+         this.copyToNotepadToolStripMenuItem.Text = "Copy to Notepad";
          // 
-         // setStartTimeToolStripMenuItem
+         // newNotepadToolStripMenuItem
          // 
-         this.setStartTimeToolStripMenuItem.Name = "setStartTimeToolStripMenuItem";
-         this.setStartTimeToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
-         this.setStartTimeToolStripMenuItem.Text = "Set Start Time";
-         this.setStartTimeToolStripMenuItem.Click += new System.EventHandler(this.setStartTimeToolStripMenuItem_Click);
+         this.newNotepadToolStripMenuItem.Name = "newNotepadToolStripMenuItem";
+         this.newNotepadToolStripMenuItem.Size = new System.Drawing.Size(185, 26);
+         this.newNotepadToolStripMenuItem.Text = "New Notepad";
+         this.newNotepadToolStripMenuItem.Click += new System.EventHandler(this.newNotepadToolStripMenuItem_Click);
          // 
          // filterByToolStripMenuItem
          // 
@@ -198,23 +201,48 @@
          // filterByThreadId
          // 
          this.filterByThreadId.Name = "filterByThreadId";
-         this.filterByThreadId.Size = new System.Drawing.Size(224, 26);
+         this.filterByThreadId.Size = new System.Drawing.Size(165, 26);
          this.filterByThreadId.Text = "ThreadId";
          this.filterByThreadId.Click += new System.EventHandler(this.filterByThreadId_Click);
          // 
          // filterByCategoryId
          // 
          this.filterByCategoryId.Name = "filterByCategoryId";
-         this.filterByCategoryId.Size = new System.Drawing.Size(224, 26);
+         this.filterByCategoryId.Size = new System.Drawing.Size(165, 26);
          this.filterByCategoryId.Text = "CategoryId";
          this.filterByCategoryId.Click += new System.EventHandler(this.filterByCategoryId_Click);
          // 
          // filterByProcId
          // 
          this.filterByProcId.Name = "filterByProcId";
-         this.filterByProcId.Size = new System.Drawing.Size(224, 26);
+         this.filterByProcId.Size = new System.Drawing.Size(165, 26);
          this.filterByProcId.Text = "PrrocId";
          this.filterByProcId.Click += new System.EventHandler(this.filterByProcId_Click);
+         // 
+         // timeToolStripMenuItem
+         // 
+         this.timeToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.showDefaultTimeToolStripMenuItem,
+            this.setStartTimeToolStripMenuItem});
+         this.timeToolStripMenuItem.Name = "timeToolStripMenuItem";
+         this.timeToolStripMenuItem.Size = new System.Drawing.Size(202, 24);
+         this.timeToolStripMenuItem.Text = "Time";
+         // 
+         // showDefaultTimeToolStripMenuItem
+         // 
+         this.showDefaultTimeToolStripMenuItem.Checked = true;
+         this.showDefaultTimeToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
+         this.showDefaultTimeToolStripMenuItem.Name = "showDefaultTimeToolStripMenuItem";
+         this.showDefaultTimeToolStripMenuItem.Size = new System.Drawing.Size(218, 26);
+         this.showDefaultTimeToolStripMenuItem.Text = "Show Default Time";
+         this.showDefaultTimeToolStripMenuItem.Click += new System.EventHandler(this.showDefaultTimeToolStripMenuItem_Click);
+         // 
+         // setStartTimeToolStripMenuItem
+         // 
+         this.setStartTimeToolStripMenuItem.Name = "setStartTimeToolStripMenuItem";
+         this.setStartTimeToolStripMenuItem.Size = new System.Drawing.Size(218, 26);
+         this.setStartTimeToolStripMenuItem.Text = "Set Start Time";
+         this.setStartTimeToolStripMenuItem.Click += new System.EventHandler(this.setStartTimeToolStripMenuItem_Click);
          // 
          // showLineToolStripMenuItem
          // 
@@ -233,7 +261,7 @@
          this.showTableHeaderToolStripMenuItem.Checked = true;
          this.showTableHeaderToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
          this.showTableHeaderToolStripMenuItem.Name = "showTableHeaderToolStripMenuItem";
-         this.showTableHeaderToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+         this.showTableHeaderToolStripMenuItem.Size = new System.Drawing.Size(220, 26);
          this.showTableHeaderToolStripMenuItem.Text = "Show Table Header";
          this.showTableHeaderToolStripMenuItem.Visible = false;
          this.showTableHeaderToolStripMenuItem.Click += new System.EventHandler(this.showTableHeaderToolStripMenuItem_Click);
@@ -243,7 +271,7 @@
          this.showLineNoToolStripMenuItem.Checked = true;
          this.showLineNoToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
          this.showLineNoToolStripMenuItem.Name = "showLineNoToolStripMenuItem";
-         this.showLineNoToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+         this.showLineNoToolStripMenuItem.Size = new System.Drawing.Size(220, 26);
          this.showLineNoToolStripMenuItem.Text = "Show Line No";
          this.showLineNoToolStripMenuItem.Click += new System.EventHandler(this.showLineNoToolStripMenuItem_Click);
          // 
@@ -252,7 +280,7 @@
          this.showProcIdToolStripMenuItem.Checked = true;
          this.showProcIdToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
          this.showProcIdToolStripMenuItem.Name = "showProcIdToolStripMenuItem";
-         this.showProcIdToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+         this.showProcIdToolStripMenuItem.Size = new System.Drawing.Size(220, 26);
          this.showProcIdToolStripMenuItem.Text = "Show ProcId";
          this.showProcIdToolStripMenuItem.Click += new System.EventHandler(this.showProcIdToolStripMenuItem_Click);
          // 
@@ -261,7 +289,7 @@
          this.showThreadIdToolStripMenuItem.Checked = true;
          this.showThreadIdToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
          this.showThreadIdToolStripMenuItem.Name = "showThreadIdToolStripMenuItem";
-         this.showThreadIdToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+         this.showThreadIdToolStripMenuItem.Size = new System.Drawing.Size(220, 26);
          this.showThreadIdToolStripMenuItem.Text = "Show ThreadId";
          this.showThreadIdToolStripMenuItem.Click += new System.EventHandler(this.showThreadIdToolStripMenuItem_Click);
          // 
@@ -270,7 +298,7 @@
          this.showCategoryToolStripMenuItem.Checked = true;
          this.showCategoryToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
          this.showCategoryToolStripMenuItem.Name = "showCategoryToolStripMenuItem";
-         this.showCategoryToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+         this.showCategoryToolStripMenuItem.Size = new System.Drawing.Size(220, 26);
          this.showCategoryToolStripMenuItem.Text = "Show Category";
          this.showCategoryToolStripMenuItem.Click += new System.EventHandler(this.showCategoryToolStripMenuItem_Click);
          // 
@@ -281,48 +309,63 @@
          this.exportFileToolStripMenuItem.Text = "ExportFile(s)";
          this.exportFileToolStripMenuItem.Click += new System.EventHandler(this.exportFileToolStripMenuItem_Click);
          // 
-         // copyToNotepadToolStripMenuItem
-         // 
-         this.copyToNotepadToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.newNotepadToolStripMenuItem});
-         this.copyToNotepadToolStripMenuItem.Name = "copyToNotepadToolStripMenuItem";
-         this.copyToNotepadToolStripMenuItem.Size = new System.Drawing.Size(202, 24);
-         this.copyToNotepadToolStripMenuItem.Text = "Copy to Notepad";
-         // 
-         // newNotepadToolStripMenuItem
-         // 
-         this.newNotepadToolStripMenuItem.Name = "newNotepadToolStripMenuItem";
-         this.newNotepadToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
-         this.newNotepadToolStripMenuItem.Text = "New Notepad";
-         this.newNotepadToolStripMenuItem.Click += new System.EventHandler(this.newNotepadToolStripMenuItem_Click);
-         // 
-         // copyLinesToolStripMenuItem
-         // 
-         this.copyLinesToolStripMenuItem.Name = "copyLinesToolStripMenuItem";
-         this.copyLinesToolStripMenuItem.Size = new System.Drawing.Size(202, 24);
-         this.copyLinesToolStripMenuItem.Text = "Copy To Clipboard";
-         this.copyLinesToolStripMenuItem.Click += new System.EventHandler(this.copyLinesToolStripMenuItem_Click);
-         // 
          // pnlFilterTag
          // 
-         this.pnlFilterTag.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-         this.pnlFilterTag.BackColor = System.Drawing.Color.White;
-         this.pnlFilterTag.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-         this.pnlFilterTag.Controls.Add(this.btnSavedFilterDelete);
-         this.pnlFilterTag.Controls.Add(this.btnSavedFilterApply);
-         this.pnlFilterTag.Controls.Add(this.btnSavedFilterAdd);
-         this.pnlFilterTag.Controls.Add(this.txtSavedFilter);
-         this.pnlFilterTag.Controls.Add(this.lstSavedFilter);
-         this.pnlFilterTag.Location = new System.Drawing.Point(568, 246);
+         this.pnlFilterTag.Controls.Add(this.tbFilterLIst);
+         this.pnlFilterTag.Controls.Add(this.tabPage2);
+         this.pnlFilterTag.Location = new System.Drawing.Point(567, 241);
          this.pnlFilterTag.Name = "pnlFilterTag";
-         this.pnlFilterTag.Size = new System.Drawing.Size(513, 186);
-         this.pnlFilterTag.TabIndex = 41;
+         this.pnlFilterTag.SelectedIndex = 0;
+         this.pnlFilterTag.Size = new System.Drawing.Size(514, 226);
+         this.pnlFilterTag.TabIndex = 0;
          this.pnlFilterTag.Visible = false;
+         // 
+         // tbFilterLIst
+         // 
+         this.tbFilterLIst.Controls.Add(this.lstSavedFilter);
+         this.tbFilterLIst.Controls.Add(this.btnSavedFilterAdd);
+         this.tbFilterLIst.Controls.Add(this.txtSavedFilter);
+         this.tbFilterLIst.Controls.Add(this.btnSavedFilterDelete);
+         this.tbFilterLIst.Controls.Add(this.btnSavedFilterApply);
+         this.tbFilterLIst.Location = new System.Drawing.Point(4, 25);
+         this.tbFilterLIst.Name = "tbFilterLIst";
+         this.tbFilterLIst.Padding = new System.Windows.Forms.Padding(3);
+         this.tbFilterLIst.Size = new System.Drawing.Size(506, 197);
+         this.tbFilterLIst.TabIndex = 0;
+         this.tbFilterLIst.Text = "Filters";
+         this.tbFilterLIst.UseVisualStyleBackColor = true;
+         // 
+         // lstSavedFilter
+         // 
+         this.lstSavedFilter.FormattingEnabled = true;
+         this.lstSavedFilter.ItemHeight = 16;
+         this.lstSavedFilter.Location = new System.Drawing.Point(41, 6);
+         this.lstSavedFilter.Name = "lstSavedFilter";
+         this.lstSavedFilter.Size = new System.Drawing.Size(454, 148);
+         this.lstSavedFilter.TabIndex = 0;
+         this.lstSavedFilter.SelectedIndexChanged += new System.EventHandler(this.lstSavedFilter_SelectedIndexChanged);
+         // 
+         // btnSavedFilterAdd
+         // 
+         this.btnSavedFilterAdd.Image = global::logAxe.Properties.Resources.Filter_Add;
+         this.btnSavedFilterAdd.Location = new System.Drawing.Point(5, 161);
+         this.btnSavedFilterAdd.Name = "btnSavedFilterAdd";
+         this.btnSavedFilterAdd.Size = new System.Drawing.Size(30, 30);
+         this.btnSavedFilterAdd.TabIndex = 42;
+         this.btnSavedFilterAdd.UseVisualStyleBackColor = true;
+         this.btnSavedFilterAdd.Click += new System.EventHandler(this.btnSavedFilterAdd_Click);
+         // 
+         // txtSavedFilter
+         // 
+         this.txtSavedFilter.Location = new System.Drawing.Point(41, 165);
+         this.txtSavedFilter.Name = "txtSavedFilter";
+         this.txtSavedFilter.Size = new System.Drawing.Size(454, 22);
+         this.txtSavedFilter.TabIndex = 41;
          // 
          // btnSavedFilterDelete
          // 
          this.btnSavedFilterDelete.Image = global::logAxe.Properties.Resources.Filter_Delete;
-         this.btnSavedFilterDelete.Location = new System.Drawing.Point(12, 71);
+         this.btnSavedFilterDelete.Location = new System.Drawing.Point(5, 55);
          this.btnSavedFilterDelete.Name = "btnSavedFilterDelete";
          this.btnSavedFilterDelete.Size = new System.Drawing.Size(30, 30);
          this.btnSavedFilterDelete.TabIndex = 44;
@@ -332,39 +375,39 @@
          // btnSavedFilterApply
          // 
          this.btnSavedFilterApply.Image = global::logAxe.Properties.Resources.Filter_Apply;
-         this.btnSavedFilterApply.Location = new System.Drawing.Point(12, 12);
+         this.btnSavedFilterApply.Location = new System.Drawing.Point(5, 12);
          this.btnSavedFilterApply.Name = "btnSavedFilterApply";
          this.btnSavedFilterApply.Size = new System.Drawing.Size(30, 30);
          this.btnSavedFilterApply.TabIndex = 43;
          this.btnSavedFilterApply.UseVisualStyleBackColor = true;
          this.btnSavedFilterApply.Click += new System.EventHandler(this.btnSavedFilterApply_Click);
          // 
-         // btnSavedFilterAdd
+         // tabPage2
          // 
-         this.btnSavedFilterAdd.Image = global::logAxe.Properties.Resources.Filter_Add;
-         this.btnSavedFilterAdd.Location = new System.Drawing.Point(12, 141);
-         this.btnSavedFilterAdd.Name = "btnSavedFilterAdd";
-         this.btnSavedFilterAdd.Size = new System.Drawing.Size(30, 30);
-         this.btnSavedFilterAdd.TabIndex = 42;
-         this.btnSavedFilterAdd.UseVisualStyleBackColor = true;
-         this.btnSavedFilterAdd.Click += new System.EventHandler(this.btnSavedFilterAdd_Click);
+         this.tabPage2.Controls.Add(this.textBox1);
+         this.tabPage2.Controls.Add(this.checkedListBox1);
+         this.tabPage2.Location = new System.Drawing.Point(4, 25);
+         this.tabPage2.Name = "tabPage2";
+         this.tabPage2.Padding = new System.Windows.Forms.Padding(3);
+         this.tabPage2.Size = new System.Drawing.Size(506, 197);
+         this.tabPage2.TabIndex = 1;
+         this.tabPage2.Text = "Category";
+         this.tabPage2.UseVisualStyleBackColor = true;
          // 
-         // txtSavedFilter
+         // textBox1
          // 
-         this.txtSavedFilter.Location = new System.Drawing.Point(48, 149);
-         this.txtSavedFilter.Name = "txtSavedFilter";
-         this.txtSavedFilter.Size = new System.Drawing.Size(454, 22);
-         this.txtSavedFilter.TabIndex = 41;
+         this.textBox1.Location = new System.Drawing.Point(9, 159);
+         this.textBox1.Name = "textBox1";
+         this.textBox1.Size = new System.Drawing.Size(490, 22);
+         this.textBox1.TabIndex = 1;
          // 
-         // lstSavedFilter
+         // checkedListBox1
          // 
-         this.lstSavedFilter.FormattingEnabled = true;
-         this.lstSavedFilter.ItemHeight = 16;
-         this.lstSavedFilter.Location = new System.Drawing.Point(48, 11);
-         this.lstSavedFilter.Name = "lstSavedFilter";
-         this.lstSavedFilter.Size = new System.Drawing.Size(454, 132);
-         this.lstSavedFilter.TabIndex = 0;
-         this.lstSavedFilter.SelectedIndexChanged += new System.EventHandler(this.lstSavedFilter_SelectedIndexChanged);
+         this.checkedListBox1.FormattingEnabled = true;
+         this.checkedListBox1.Location = new System.Drawing.Point(9, 19);
+         this.checkedListBox1.Name = "checkedListBox1";
+         this.checkedListBox1.Size = new System.Drawing.Size(490, 123);
+         this.checkedListBox1.TabIndex = 0;
          // 
          // pnlShowProgress
          // 
@@ -491,6 +534,7 @@
          this.pnlFilterSearch.Size = new System.Drawing.Size(513, 186);
          this.pnlFilterSearch.TabIndex = 16;
          this.pnlFilterSearch.Visible = false;
+         this.pnlFilterSearch.Move += new System.EventHandler(this.pnlFilterSearch_Move);
          // 
          // btnClearFilter
          // 
@@ -1081,7 +1125,10 @@
          this.masterPanel.ResumeLayout(false);
          this.contextMenu.ResumeLayout(false);
          this.pnlFilterTag.ResumeLayout(false);
-         this.pnlFilterTag.PerformLayout();
+         this.tbFilterLIst.ResumeLayout(false);
+         this.tbFilterLIst.PerformLayout();
+         this.tabPage2.ResumeLayout(false);
+         this.tabPage2.PerformLayout();
          this.pnlShowProgress.ResumeLayout(false);
          this.pnlFilterSearch.ResumeLayout(false);
          this.pnlFilterSearch.PerformLayout();
@@ -1175,7 +1222,6 @@
       private System.Windows.Forms.ToolStripMenuItem newNotepadToolStripMenuItem;
       private System.Windows.Forms.ToolStripMenuItem setStartTimeToolStripMenuItem;
       private System.Windows.Forms.ToolStripMenuItem copyLinesToolStripMenuItem;
-      private System.Windows.Forms.Panel pnlFilterTag;
       private System.Windows.Forms.ListBox lstSavedFilter;
       private System.Windows.Forms.Button btnSavedFilterDelete;
       private System.Windows.Forms.Button btnSavedFilterApply;
@@ -1183,5 +1229,10 @@
       private System.Windows.Forms.TextBox txtSavedFilter;
       private System.Windows.Forms.Button btnShowSavedFilters;
       private System.Windows.Forms.Button btnClearFilter;
+      private System.Windows.Forms.TabControl pnlFilterTag;
+      private System.Windows.Forms.TabPage tbFilterLIst;
+      private System.Windows.Forms.TabPage tabPage2;
+      private System.Windows.Forms.TextBox textBox1;
+      private System.Windows.Forms.CheckedListBox checkedListBox1;
    }
 }

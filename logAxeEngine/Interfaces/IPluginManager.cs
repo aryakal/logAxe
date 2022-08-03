@@ -4,6 +4,7 @@
 //=====================================================================================================================
 
 using logAxeCommon;
+using logAxeCommon.Interfaces;
 
 namespace logAxeEngine.Interfaces
 {

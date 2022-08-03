@@ -1,7 +1,7 @@
 class LogAxeFileUploader {
 
-    constructor(appRoot, ctlId) {
-
+    constructor(appRoot, ctlId, channel) {
+        this._channel = channel;
         this._container = document.getElementById(ctlId);
         this._appRoot = appRoot + "files";
         this._container.addEventListener('dragover', this.set_drag_event.bind(this), false);
@@ -15,9 +15,7 @@ class LogAxeFileUploader {
 
     ldgb(msg) {
         if (this._debug_enabled) {
-            console.log("lf, ",
-                this._ndx_upload + " of " + this._files.length + " [ " + this._files_size + " ] ",
-                msg);
+            console.log("lf, ", this._ndx_upload + " of " + this._files.length + " [ " + this._files_size + " ] ", msg);
         }
     }
 
@@ -44,20 +42,19 @@ class LogAxeFileUploader {
     set_upload() {
         var obj = this;
         setTimeout(function() {
-            if (obj._ndx_upload == -1) {
-                // obj.ldgb("Total files: " + files.length + ", total file size: " + obj.get_total_fsize(obj._files));
-                // obj.ldgb("" + (obj._ndx_upload + 1) + " of " + obj._files.length + "upload start");
+            if (obj._ndx_upload == -1) {// obj.ldgb("Total files: " + files.length + ", total file size: " + obj.get_total_fsize(obj._files));
+            // obj.ldgb("" + (obj._ndx_upload + 1) + " of " + obj._files.length + "upload start");
 
             }
             obj._ndx_upload++;
             if (obj._ndx_upload < obj._files.length) {
                 obj.set_uploadFile(obj._files[obj._ndx_upload]);
             } else {
-                var url = obj._appRoot + "?op=process";
-                return $.getJSON(url, function(result) {
-                    console.log(result);
-                });
-
+                // var url = obj._appRoot + "?op=process";
+                // return $.getJSON(url, function(result) {
+                //     console.log(result);
+                // });
+                obj._channel.cmd_process_files();
             }
 
         }, 0);
@@ -84,7 +81,8 @@ class LogAxeFileUploader {
                     obj.set_upload();
                 },
             });
-        };
+        }
+        ;
         reader.readAsDataURL(f);
     }
 

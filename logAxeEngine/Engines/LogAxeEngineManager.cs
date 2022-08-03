@@ -11,26 +11,31 @@ using System.Linq;
 using System.Threading;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+
 using logAxeCommon;
 using logAxeEngine.Common;
-using logAxeEngine.Storage;
 using logAxeEngine.Interfaces;
+using logAxeEngine.Storage;
 using logAxeEngine.EventMessages;
-
+using logAxeCommon.Interfaces;
+using logAxeCommon.Files;
+using libALogger;
+using libACommunication;
 
 namespace logAxeEngine.Engines
 {
    public class LogAxeEngineManager : ILogEngine
    {
       private int UniqueFileId { get; set; } = LogLine.INVALID;
-      private readonly NamedLogger _logger = new NamedLogger("logEng");
+      private readonly ILibALogger _logger;
       private readonly List<IFileObject> _allFiles = new List<IFileObject>();
       private readonly FileParseProgressEvent _fileProgressStat = new FileParseProgressEvent();
       private readonly SemaphoreSlim _lockAddition = new SemaphoreSlim(1, 1);
-      private readonly MessageExchangeHelper _messenger;
+      //private readonly MessageExchangeHelper _messenger;
       private readonly IPluginManager _pluginManger;
+      private IMessageExchanger _messgeExchanger;
 
-      public IMessageBroker MessageBroker { get; }
+      //public IMessageBroker MessageBroker { get; }
 
       // Storage dbs
       private IStorageString _storeMsgStack;
@@ -44,10 +49,12 @@ namespace logAxeEngine.Engines
 
       public LogAxeEngineManager(IMessageBroker messageBroker, IPluginManager pluginManager)
       {
-         MessageBroker = messageBroker;
+         _messgeExchanger = null;
+         _logger = Logging.GetLogger("logEng");
+         //MessageBroker = messageBroker;
          _pluginManger = pluginManager;
-         _messenger = new MessageExchangeHelper(MessageBroker, null);
-         MessageBroker.Start();
+         //_messenger = new MessageExchangeHelper(MessageBroker, null);
+         //MessageBroker.Start();
 
          Clear();
       }
@@ -77,7 +84,7 @@ namespace logAxeEngine.Engines
          _storeTag = new StorageStringDB();
          _database = new StorageMetaDatabase(_storeMsgStack, _storeTag);
          _allFiles.Clear();
-         _messenger.PostMessage(LogAxeMessageEnum.NewViewAnnouncement);
+         _messgeExchanger?.BroadCast(new UnitCmd(opCode: WebFrameWork.CMD_BST_NEW_VIEW, name: WebFrameWork.CLIENT_BST_ALL));
          UniqueFileId = LogLine.INVALID;
          GC.Collect();
       }
@@ -104,11 +111,15 @@ namespace logAxeEngine.Engines
       }
       public LogFrame Filter(TermFilter term)
       {
-         return _database.Filter(term);
+         var frame = _database.Filter(term);
+         frame.TotalLogFiles = _allFiles.Count;
+         return frame;
       }
       public LogFrame GetMasterFrame()
       {
-         return _database.GetMasterFrame();
+         var frame = _database.GetMasterFrame();
+         frame.TotalLogFiles = _allFiles.Count;
+         return frame;
       }
       #endregion
 
@@ -123,25 +134,29 @@ namespace logAxeEngine.Engines
       }
       public void AddFiles(IFileObject[] paths, bool processAsync = true, bool addFileAsync = true)
       {
-         if (addFileAsync)
-         {
-            Task.Run(() =>
-            {
-               ProcessFiles(paths, processAsync);
-            });
-         }
-         else
+         var tsk = Task.Run(() =>
          {
             ProcessFiles(paths, processAsync);
+         });
+
+         if (!addFileAsync)
+         {
+            tsk.Wait();
          }
       }
 
-      public LogFileInfo[] GetAllFileNames()
+      public LogFileInfo[] GetAllLogFileInfo()
       {
          var lst = new List<LogFileInfo>();
          foreach (var at in _allFiles)
          {
-            lst.Add(new LogFileInfo() { DisplayName = at.FileName, FileNo = at.InfoTracker.UniqueFileNo, Key = "" });
+            lst.Add(new LogFileInfo() { 
+               DisplayName = at.FileName, 
+               FileNo = at.InfoTracker.UniqueFileNo, 
+               Key = "", 
+               IsLoaded= at.InfoTracker.IsProcessed, 
+               ParserName=at.InfoTracker.LogParser == null ? "" : at.InfoTracker.LogParser.ParserName
+            });
          }
          return lst.ToArray();
       }
@@ -247,23 +262,20 @@ namespace logAxeEngine.Engines
       /// </summary>
       /// <param name="files"></param>
       /// <returns></returns>
-      private Tuple<int, long> HelperAssociateParser(IFileObject[] files) {
-         var lst = new List<FileTrackerInfo>();
+      private Tuple<int, long> HelperAssociateParser(IFileObject[] files) {         
          long totalFileSize = 0;
          int validFiles = 0;
          foreach (var fo in files)
          {
-            if (!fo.IsFileValid)
-               continue;
-            var parser = _pluginManger.GuessParser(fo.FileName);
-            if(null == parser)
-               continue;
             fo.InfoTracker = new FileTrackerInfo()
             {
-               
                UniqueFileNo = ++UniqueFileId,
-               LogParser = parser
+               LogParser = fo.IsFileValid ? _pluginManger.GuessParser(fo.FileName) : null
             };
+
+            if (null == fo.InfoTracker.LogParser)
+               continue;
+            
             validFiles += 1;
             totalFileSize += fo.FileSize;
          }
@@ -274,9 +286,11 @@ namespace logAxeEngine.Engines
       private void ProcessFiles(IFileObject[] files, bool useParallelTasks = true)
       {
          var (validFiles, totalFileSize) = HelperAssociateParser(files);
-         
+         _allFiles.AddRange(files);
+
          if (0 == validFiles)
             return;
+         
 
          _fileProgressStat.TotalFileCount += validFiles;
          _fileProgressStat.ParseComplete = false;
@@ -295,22 +309,18 @@ namespace logAxeEngine.Engines
                AddFileToIndex(files[ndx]);
             }
          }
-
-         foreach (var fo in files)
-         {
-            if(null != fo.InfoTracker && fo.InfoTracker.IsProcessed)
-               _allFiles.Add(fo);
-         }
-         // Let the user know what happened how many files were processed.
          
          _database.OptimizeData();
-         _messenger.PostMessage(LogAxeMessageEnum.EngineOptmizeComplete);
+         //_messenger.PostMessage(LogAxeMessageEnum.EngineOptmizeComplete);
+         //_messgeExchanger?.BroadCast(null);
          Utils.ClearAllGCMemory();
          GC.Collect();
-         _logger.Debug("optmizing data compelted");         
+         _logger.Debug("optmizing data compeleted");         
          _fileProgressStat.ParseComplete = true;
-         _messenger.PostMessage(_fileProgressStat);
-         _messenger.PostMessage(LogAxeMessageEnum.NewViewAnnouncement);
+         //_messenger.PostMessage(_fileProgressStat);
+         //_messgeExchanger?.BroadCast(null);
+         //_messenger.PostMessage(LogAxeMessageEnum.NewViewAnnouncement);
+         _messgeExchanger?.BroadCast(new UnitCmd(opCode: WebFrameWork.CMD_BST_NEW_VIEW, name: WebFrameWork.CLIENT_BST_ALL));         
       }
       private void AddFileToIndex(IFileObject fo)
       {
@@ -332,17 +342,36 @@ namespace logAxeEngine.Engines
             FileId = fo.InfoTracker.UniqueFileNo
          };
 
-         fo.InfoTracker.LogParser.ParseFile(logFile);
+
+         try
+         {
+            fo.InfoTracker.LogParser.ParseFile(logFile);
+         }
+         catch (Exception ex)
+         {
+            fo.InfoTracker.ExceptionDetails = ex;            
+         }
+
 
          _lockAddition.Wait();
          try
          {
-            _fileProgressStat.TotalFileSizeLoaded += logFile.FileData.Length;
-            _fileProgressStat.TotalFileLoadedCount++;
-            _database.AddLogFile(logFile, logFile.FileId);
-            _fileProgressStat.TotalFileParsedCount++;
-            fo.InfoTracker.IsProcessed = true;
-            _messenger.PostMessage(_fileProgressStat);
+            if (fo.InfoTracker.HasException)
+            {
+               _fileProgressStat.TotalFileLoadedCount++;
+               _fileProgressStat.TotalFileRejectedCount++;
+               fo.InfoTracker.IsProcessed = false;
+            }
+            else 
+            {
+               _fileProgressStat.TotalFileSizeLoaded += logFile.FileData.Length;
+               _fileProgressStat.TotalFileLoadedCount++;
+               _database.AddLogFile(logFile, logFile.FileId);
+               _fileProgressStat.TotalFileParsedCount++;
+               fo.InfoTracker.IsProcessed = true;               
+            }
+            //_messenger.PostMessage(_fileProgressStat);
+
          }
          catch
          {
@@ -353,6 +382,11 @@ namespace logAxeEngine.Engines
          }
 
          logFile.Clear();
+      }
+
+      public void RegisterMessageExchanger(IMessageExchanger exchanger)
+      {
+         _messgeExchanger = exchanger;
       }
 
       #endregion

@@ -10,6 +10,8 @@ using FakeItEasy;
 using System.Text;
 using System;
 using logAxeCommon;
+using logAxeCommon.Interfaces;
+using logAxeCommon.Files;
 using logAxePlugin;
 using logAxeEngine.Common;
 
@@ -26,7 +28,7 @@ namespace logAxeEngine.UnitTest
          var pluginManager = new PluginManager();
          var messageBroker = A.Fake<IMessageBroker>();
          _sut = new LogAxeEngineManager(messageBroker, pluginManager);
-         var fakePlugin = new GeneralLogParser();
+         var fakePlugin = new UnitTestLogParser();
          pluginManager.LoadPlugin(fakePlugin);
 
          _sut.AddFiles(new IFileObject[] { GetFakeFile() }, processAsync: false, addFileAsync: false);
@@ -37,7 +39,7 @@ namespace logAxeEngine.UnitTest
          var pluginManager = new PluginManager();
          var messageBroker = A.Fake<IMessageBroker>();
          var localSut = new LogAxeEngineManager(messageBroker, pluginManager);
-         var fakePlugin = new GeneralLogParser();
+         var fakePlugin = new UnitTestLogParser();
          pluginManager.LoadPlugin(fakePlugin);
 
          localSut.AddFiles(new IFileObject[] {
@@ -48,12 +50,12 @@ namespace logAxeEngine.UnitTest
          
 
          Assert.IsTrue(localSut.GetMasterFrame().TotalLogLines == 200);
-         Assert.IsTrue(localSut.GetAllFileNames().Length == 2);
+         Assert.IsTrue(localSut.GetAllLogFileInfo().Length == 2);
 
          localSut.Clear();
 
          Assert.IsTrue(localSut.GetMasterFrame().TotalLogLines == 0);
-         Assert.IsTrue(localSut.GetAllFileNames().Length == 0);
+         Assert.IsTrue(localSut.GetAllLogFileInfo().Length == 0);
 
       }
 
@@ -141,19 +143,21 @@ namespace logAxeEngine.UnitTest
 
       }
 
-      private IFileObject GetFakeFile(string fileName="test.txt", int totalLines=100, long timeTicks= 637451028000000000)
-      {  
+      private IFileObject GetFakeFile(string fileName="test", int totalLines=100, long timeTicks= 637451028000000000)
+      {
+         fileName += ".unit.txt";
          var s = new StringBuilder();
          //var t = new DateTime(2021, 1, 1, 13, 0, 0).Ticks;
          var timeStamp = new DateTime(timeTicks);
          var deltaTime = new TimeSpan(0, 1, 0);         
          var halfProcess = (int)totalLines / 2;
          var quarterProcess = (int)totalLines / 4;
-         //Trace, dt, thid, cat, msg         
+         var sixth = (int)totalLines / 6;
+         //Trace, dt, threid, procid, cat, msg         
          for (var ndx = 0; ndx < totalLines; ndx++)
          {            
             timeStamp += deltaTime;
-            s.Append($"{GetLogType((LogType)(ndx%4))},{timeStamp:yyyyMMddHHmmssfff}, {(int)ndx/halfProcess}, cat{(int)ndx / quarterProcess}, Msg from id {ndx}\n");            
+            s.Append($"{GetLogType((LogType)(ndx%4))},{timeStamp:yyyyMMddHHmmssfff},{(int)ndx / sixth},{(int)ndx/halfProcess}, cat{(int)ndx / quarterProcess}, Msg from id {ndx}\n");            
          }
 
          return new WebFile(

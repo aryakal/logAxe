@@ -91,6 +91,7 @@
     <Compile Include="CntrlTextViewer.Designer.cs">
       <DependentUpon>CntrlTextViewer.cs</DependentUpon>
     </Compile>
+    <Compile Include="Communication.cs" />
     <Compile Include="frmConfigAbout.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -121,11 +122,9 @@
     <Compile Include="frmNotepad.Designer.cs">
       <DependentUpon>frmNotepad.cs</DependentUpon>
     </Compile>
-    <Compile Include="logAxe.cs" />
     <Compile Include="LogAxeMain.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TableSkeleton.cs" />
-    <Compile Include="UserConfig.cs" />
     <Compile Include="ViewCommon.cs" />
     <EmbeddedResource Include="CntrlTextViewer.resx">
       <DependentUpon>CntrlTextViewer.cs</DependentUpon>
@@ -171,11 +170,8 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="docs\featureList.html" />
-    <Content Include="docs\index.html" />
     <Content Include="logAxe.ico" />
     <Content Include="Resources\axe-icon.svg" />
-    <Content Include="README.txt" />
     <None Include="Resources\Filter_Delete.png" />
     <None Include="Resources\Filter_Apply.png" />
     <None Include="Resources\Filter_Add.png" />
@@ -183,13 +179,17 @@
     <None Include="Resources\axeIcon.png" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\libACommunication\libACommunication.csproj">
+      <Project>{2deca140-7a82-42b7-b837-2eb9b78bf3fc}</Project>
+      <Name>libACommunication</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\libALogger\libALogger.csproj">
+      <Project>{d8fa8a80-750a-4eb6-9fd4-10af8fad5e98}</Project>
+      <Name>libALogger</Name>
+    </ProjectReference>
     <ProjectReference Include="..\logAxeCommon\logAxeCommon.csproj">
       <Project>{33741f70-80e9-4939-b6f7-906df7260b4b}</Project>
       <Name>logAxeCommon</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\logAxeEngine\logAxeEngine.csproj">
-      <Project>{14cc60a6-5b45-4699-95e5-ed4a2d25025b}</Project>
-      <Name>logAxeEngine</Name>
     </ProjectReference>
     <ProjectReference Include="..\logAxePlugin\logAxePlugin.csproj">
       <Project>{43d0c640-a7e0-4505-837d-fd56f122b7d6}</Project>
@@ -207,6 +207,9 @@
       <ProductName>.NET Framework 3.5 SP1</ProductName>
       <Install>false</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="docs\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

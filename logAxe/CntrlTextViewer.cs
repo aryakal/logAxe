@@ -4,7 +4,12 @@
 // Subsystem (for future me)
 // MasterThread   | DoWork      | Everyting starts here. This long running task is executing every command.
 // Draw           | DoWork_Draw | All drawing function starts here.
-// 
+
+// TODO : 
+// On click of the line no need to fetch data from the server.
+// filters
+// Files
+// how memory of the files etc.
 //=====================================================================================================================
 
 using System;
@@ -14,58 +19,42 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using logAxeCommon;
-using logAxeEngine.Common;
-using logAxeEngine.Interfaces;
-using logAxeEngine.EventMessages;
+//using logAxeEngine.Common;
+//using logAxeEngine.Interfaces;
+//using logAxeEngine.EventMessages;
 using System.Text;
+using libALogger;
+using libACommunication;
+
 
 namespace logAxe
 {
-   public partial class CntrlTextViewer : UserControl, IMessageReceiver
-   {
-      /// <summary>
-      /// Internal class where the work is defined.
-      /// </summary>
-      internal class Work
-      {
-         public Work(WType type, object work)
-         {
-            Type = type;
-            RealWork = work;
-         }
-
-         public enum WType
-         {
-            Message,
-            Draw,
-            GetNewView,
-            SetNewView,
-         }
-
-         public WType Type { get; }
-         public object RealWork { get; set; }
-      }
+   public partial class CntrlTextViewer : UserControl
+   {   
       internal class MouseState
       {
          public bool IsMouseDown { get; set; }
          public int X { get; set; }
          public int Y { get; set; }
       }
-      private Task _backgroundWork;
-      private CancellationTokenSource _cancelToken;
-      private BlockingCollection<Work> _queueWork = new BlockingCollection<Work>();
-      private UserConfig _userConfig;
-      private DrawSurface _newCanvas = new DrawSurface();
-      private LogFrame _view;
-      private TableSkeleton _table;
-      private TermFilter CurrentFilter = new TermFilter();
-      private MessageExchangeHelper _msgHelper;
-      private MouseState _mouse = new MouseState();
-      private long _totalDraws = 0;
-      private frmLineData _lineInfoDlg = new frmLineData();
-      private NamedLogger _logger;
-      private frmFileManager _fld;
       public string UniqueId { get; }
+
+      private ConfigUI _userConfig;
+
+      private bool _drawRequired = false;
+      private TableSkeleton _table;
+      private DrawSurface _newCanvas = new DrawSurface();
+
+      
+      private frmFileManager _fld;
+      private frmLineData _lineInfoDlg = new frmLineData();
+      private CustomMoveCntrl _moveFilterBox;
+
+      private TermFilter CurrentFilter = new TermFilter();
+
+      private MouseState _mouse = new MouseState();            
+      private ILibALogger _logger;
+      
       private bool _isNotepad = false;
       public string NotepadName { get; set; }
       public bool IsViewNotepad
@@ -84,9 +73,10 @@ namespace logAxe
             }
 
          }
-      }
-      public Action<ILogAxeMessage> OnNewNotepadChange { get; set; }
+      }      
       public string _filterMessage = "";
+
+      public Action<CntrlTextViewerMsg> OnNewNotepadChange { get; set; }
       public string FilterMessage
       {
          get
@@ -96,61 +86,56 @@ namespace logAxe
          private set
          {
             _filterMessage = value;
-            OnNewNotepadChange?.Invoke(new LogAxeGenericMessage() { MessageType = LogAxeMessageEnum.NewMainFrmAddRemoved });
+            OnNewNotepadChange?.Invoke(CntrlTextViewerMsg.SetTitle);
          }
       }
+
+      private SemaphoreSlim _lockDraw = new SemaphoreSlim(1, 1);
+      private System.Windows.Forms.Timer _timer;
+      private System.Windows.Forms.Timer _timerBackgroundDraw;
+
       public CntrlTextViewer()
       {
          UniqueId = $"View-{DateTime.Now:HHmmssfff}";
-         _logger = new NamedLogger(UniqueId);
+         _logger = new NamedLogger("v"+UniqueId.Substring(10,3));
          InitializeComponent();
 
-         // prevent issue using development.
-         if (ViewCommon.Engine != null)
-         {
-            new HelperAttachFileDrop(this);
-            new HelperAttachFileDrop(masterPanel);
-
-            _userConfig = ViewCommon.UserConfig;
-
-            RegisterControl(masterPanel);
-
-            _msgHelper = new MessageExchangeHelper(ViewCommon.MessageBroker, this);
-            _table = new TableSkeleton(masterPanel.Location, masterPanel.Size, _msgHelper);
-
-            _queueWork.Add(new Work(Work.WType.SetNewView, LogFrame.GetEmptyView()));
-
-            _cancelToken = new CancellationTokenSource();
-            _backgroundWork = Task.Factory.StartNew(() =>
-            {
-               DoWork();
-            }, TaskCreationOptions.LongRunning);
-
-            QueueDrawRequest("init");
-            SetForeColor();
-            UpdateTotal(ViewCommon.Engine.GetStartInfo());
-            AddMenuItem();
-         }
-         else
-         {
-            _table = new TableSkeleton(masterPanel.Location, masterPanel.Size, null);
-         }
-
+         _table = new TableSkeleton(masterPanel.Location, masterPanel.Size);
+         _table.AddColumn(new TableColumn("LineNo") {Visible = false });
+         _table.AddColumn(new TableColumn("ProcId") { Width = 20, Visible = false });
+         _table.AddColumn(new TableColumn("ThId") { Width = 20, Visible = false });
+         _table.AddColumn(new TableColumn("Category") { Width = 100, Visible = false });
+         _table.AddColumn(new TableColumn("TimeStamp"));
+         _table.AddColumn(new TableColumn("ImageNo") { Width = 20, DisplayName = "" });
+         _table.AddColumn(new TableColumn("Message"));
+         _moveFilterBox = new CustomMoveCntrl(lblFiterBoxTxt, pnlFilterSearch);
          _lineInfoDlg.MoveLine += MoveLine;
 
-         LoadFilter();
-
-      }
-      public void SetMasterView()
-      {
-         if (ViewCommon.Engine != null)
+         if (ViewCommon.Channel != null)
          {
-            _queueWork.Add(new Work(Work.WType.SetNewView, ViewCommon.Engine.GetMasterFrame()));
+            _userConfig = ViewCommon.GetConfig();
+            ViewCommon.Channel.RegisterClient(UniqueId, DoWork);
+            new HelperAttachFileDrop(this);
+            new HelperAttachFileDrop(masterPanel);
+            RegisterControl(masterPanel);
+            SetForeColor();
+            AddMenuItem();
+            _newCanvas.SetSize(masterPanel.Size);
+            _table.Resize(_newCanvas.bmp.Size);
+            _table.Dirty = false;
+
+            _timerBackgroundDraw = new System.Windows.Forms.Timer();
+            _timerBackgroundDraw.Interval = 50;
+            _timerBackgroundDraw.Tick += DoWork_Draw3;
+            _timerBackgroundDraw.Start();
          }
+         
+         //TODO : load filters.
+         //LoadFilter();
+         
+
       }
-
       public readonly string FilterBoxLbl = "Filter log lines ( + Include - Exclude)";
-
       public void FillCircle(Brush brush, float radius, PointF point)
       {
          _newCanvas.gc.FillEllipse(brush,
@@ -171,6 +156,7 @@ namespace logAxe
       {
          return new RectangleF(x - size, y - size, size * 2, size * 2);
       }
+
       protected override bool ProcessCmdKey(ref System.Windows.Forms.Message msg, Keys keyData)
       {
          switch (keyData)
@@ -184,8 +170,8 @@ namespace logAxe
                   TogglePanel();
                break;
             case Keys.Escape:
-               if (!_isNotepad)
-                  _msgHelper.PostMessage(new LogAxeGenericMessage() { MessageType = LogAxeMessageEnum.AwakeAllWindows });
+               //if (!_isNotepad)
+               //   _msgHelper.PostMessage(new LogAxeGenericMessage() { MessageType = LogAxeMessageEnum.AwakeAllWindows });
                break;
          }
 
@@ -227,7 +213,7 @@ namespace logAxe
                _table.Dirty = true;
                QueueDrawRequest($"ProcessCmdKey, {keyData}");
                break;
-            case Keys.F10:               
+            case Keys.F10:
                _table["TimeStamp"].Visible = !_table["TimeStamp"].Visible;
                _table.Dirty = true;
                QueueDrawRequest($"ProcessCmdKey, {keyData}");
@@ -265,7 +251,8 @@ namespace logAxe
 
       protected override void OnHandleDestroyed(EventArgs e)
       {
-         _msgHelper?.Unregister();
+         _moveFilterBox.Release();
+         //_msgHelper?.Unregister();
       }
 
       private void MoveLine(int delta)
@@ -291,7 +278,7 @@ namespace logAxe
       {
          int numberOfTextLinesToMove = (e.Delta * -1) * SystemInformation.MouseWheelScrollLines / 120;
          _table.MoveLine(numberOfTextLinesToMove);
-         QueueDrawRequest("Ctrl_MouseUp");
+         QueueDrawRequest("Ctrl_MouseWheel");
       }
       private void Ctrl_MouseMove(object sender, MouseEventArgs e)
       {
@@ -357,10 +344,36 @@ namespace logAxe
          _table.ChangeScrollMove(y);
          QueueDrawRequest("ScrollMove");
       }
+      private void masterPanel_Paint(object sender, PaintEventArgs e)
+      {
+         //QueueDrawRequest("masterPanel_Paint");
+         if (_timer != null && _timer.Enabled)
+         {
+            return;
+         }
+         DoWork_Draw2("masterPanel_Paint");
+      }
+
       private void Ctrl_Resize(object sender, EventArgs e)
       {
+         _logger?.Debug("Resize start");
+         if (null == _timer)
+         {
+            _timer = new System.Windows.Forms.Timer();
+            _timer.Interval = 200;
+            _timer.Tick += _timer_Tick;
+         }
+         _timer.Start();
+         //QueueDrawRequest("Ctrl_Resize", resetSize: true);
+      }
+
+      private void _timer_Tick(object sender, EventArgs e)
+      {
+         _logger?.Debug("Resize complete");
+         _timer.Stop();
          QueueDrawRequest("Ctrl_Resize");
       }
+
       void CalculateChange(int x, int y, bool isMouseDown)
       {
          if (_mouse.IsMouseDown)
@@ -386,7 +399,7 @@ namespace logAxe
          if (pnlFilterSearch.Visible)
          {
             txtInclude.Focus();
-            pnlFilterTag.Visible = _showPnlFilterTag;
+            pnlFilterTag.Visible = _showPnlFilterTag;  
          }
          else
          {
@@ -398,13 +411,11 @@ namespace logAxe
       bool _showPnlFilterTag = false;
       private void btnShowSavedFilters_Click(object sender, EventArgs e)
       {
+         pnlFilterTag.Location = new Point(pnlFilterSearch.Location.X, pnlFilterSearch.Location.Y + pnlFilterSearch.Size.Height + 2);
          _showPnlFilterTag = !_showPnlFilterTag;
          pnlFilterTag.Visible = _showPnlFilterTag;
       }
-      private void masterPanel_Paint(object sender, PaintEventArgs e)
-      {
-         QueueDrawRequest("masterPanel_Paint");
-      }
+      
       #endregion
 
       #region context menu
@@ -412,12 +423,12 @@ namespace logAxe
       {
          //Check if any line is selected in the view.
          var (isLineSlected, logLine) = _table.GetSelectedLine();
-         
+
          //enable disable menu button based on line selected and if it is a notepad.
          copyToNotepadToolStripMenuItem.Enabled = isLineSlected;
          exportFileToolStripMenuItem.Enabled = isLineSlected;
          filterByToolStripMenuItem.Enabled = (isLineSlected && !_isNotepad);
-         
+
          if (filterByToolStripMenuItem.Enabled)
          {
             filterByThreadId.Text = $"ThreadId- {logLine.ThreadNo}";
@@ -446,31 +457,29 @@ namespace logAxe
       private void showTableHeaderToolStripMenuItem_Click(object sender, EventArgs e)
       {
          _table.ShowTableHeader = !showTableHeaderToolStripMenuItem.Checked;
-         DoWork_RequestDrawWithFlag("showLineNoToolStripMenuItem");
+         QueueDrawRequest("showLineNoToolStripMenuItem");
       }
       private void showLineNoToolStripMenuItem_Click(object sender, EventArgs e)
       {
          _table["LineNo"].Visible = !showLineNoToolStripMenuItem.Checked;
-         DoWork_RequestDrawWithFlag("showLineNoToolStripMenuItem");
+         QueueDrawRequest("showLineNoToolStripMenuItem");
       }
       private void showProcIdToolStripMenuItem_Click(object sender, EventArgs e)
       {
          _table["ProcId"].Visible = !showProcIdToolStripMenuItem.Checked;
-         DoWork_RequestDrawWithFlag("showLineNoToolStripMenuItem");
+         QueueDrawRequest("showLineNoToolStripMenuItem");
       }
       private void showThreadIdToolStripMenuItem_Click(object sender, EventArgs e)
       {
          _table["ThId"].Visible = !showThreadIdToolStripMenuItem.Checked;
-         DoWork_RequestDrawWithFlag("showLineNoToolStripMenuItem");
+         QueueDrawRequest("showLineNoToolStripMenuItem");
       }
       private void showCategoryToolStripMenuItem_Click(object sender, EventArgs e)
       {
          _table["Category"].Visible = !showCategoryToolStripMenuItem.Checked;
-         DoWork_RequestDrawWithFlag("showLineNoToolStripMenuItem");
+         QueueDrawRequest("showLineNoToolStripMenuItem");
       }
-      
-
-      private void ShowFileManager(int [] selectedFileIndex)
+      private void ShowFileManager(int[] selectedFileIndex)
       {
          if (null == _fld)
          {
@@ -480,7 +489,7 @@ namespace logAxe
          _fld.ShowDialog();
       }
       private void exportFileToolStripMenuItem_Click(object sender, EventArgs e)
-      {  
+      {
          ShowFileManager(_table.GetFileIndexForSeletedLines());
       }
       private void newNotepadToolStripMenuItem_Click(object sender, EventArgs e)
@@ -491,26 +500,26 @@ namespace logAxe
             notepadName = ViewCommon.OpenNewNotepad();
          }
 
-         _msgHelper.PostMessage(
-            new AddLineToNotepadEvent()
-            {
-               NotebookName = notepadName,
-               GlobalLine = _table.GetGlobalLineIndexForSeletedLines()
-            });
+         //_msgHelper.PostMessage(
+         //   new AddLineToNotepadEvent()
+         //   {
+         //      NotebookName = notepadName,
+         //      GlobalLine = _table.GetGlobalLineIndexForSeletedLines()
+         //   });
 
          AddMenuItem();
       }
       private void showDefaultTimeToolStripMenuItem_Click(object sender, EventArgs e)
       {
          _table.ShowTimeSelected = TableSkeleton.ShowTime.Default;
-         DoWork_RequestDrawWithFlag("showDefaultTimeToolStripMenuItem");
+         QueueDrawRequest("showDefaultTimeToolStripMenuItem");
       }
       private void setStartTimeToolStripMenuItem_Click(object sender, EventArgs e)
       {
          var (_, logLine) = _table.GetSelectedLine();
          _table.ShowTimeSelected = TableSkeleton.ShowTime.StartTime;
          _table.ShowTime_Default_StartTime = logLine.TimeStamp;
-         DoWork_RequestDrawWithFlag("setStartTimeToolStripMenuItem");
+         QueueDrawRequest("setStartTimeToolStripMenuItem");
       }
       #endregion
 
@@ -521,34 +530,34 @@ namespace logAxe
          lblWarning.ForeColor = _userConfig.MsgWarningFontColor;
          lblInfo.ForeColor = _userConfig.MsgInfoFontColor;
       }
-      public void GetMessage(logAxeEngine.Interfaces.ILogAxeMessage message)
-      {
-         _queueWork.Add(new Work(Work.WType.Message, message)); ;
-      }
-      private void SetView(LogFrame frame)
-      {
-         _table.SetViewFrame(frame);
-         _view = frame;
-         _table.SetTotalLines(_view.TotalLogLines);
-         _table.CurrentDataLine = 0;
-         _table.Dirty = true;
-         masterPanel.Invoke(new Action(() =>
-         {
-            lblTrace.Text = _view.LogTypeLength(LogType.Trace).ToString();
-            lblError.Text = _view.LogTypeLength(LogType.Error).ToString();
-            lblWarning.Text = _view.LogTypeLength(LogType.Warning).ToString();
-            lblInfo.Text = _view.LogTypeLength(LogType.Info).ToString();
-            lblTotal.Text = _table.TotalDataLines.ToString();
-            lblHiddenTotal.Text = _view.TotalLogLines != _view.SystemTotalLogLine ?
-               (_view.SystemTotalLogLine - _table.TotalDataLines).ToString() :
-               "";
+      //public void GetMessage(logAxeEngine.Interfaces.ILogAxeMessage message)
+      //{
+      //   _queueWork.Add(new Work(Work.WType.Message, message)); ;
+      //}
+      //private void SetView(LogFrame frame)
+      //{
+      //   _table.SetViewFrame(frame);
+      //   _view = frame;
+      //   _table.SetTotalLines(_view.TotalLogLines);
+      //   _table.CurrentDataLine = 0;
+      //   _table.Dirty = true;
+      //   masterPanel.Invoke(new Action(() =>
+      //   {
+      //      lblTrace.Text = _view.LogTypeLength(LogType.Trace).ToString();
+      //      lblError.Text = _view.LogTypeLength(LogType.Error).ToString();
+      //      lblWarning.Text = _view.LogTypeLength(LogType.Warning).ToString();
+      //      lblInfo.Text = _view.LogTypeLength(LogType.Info).ToString();
+      //      lblTotal.Text = _table.TotalDataLines.ToString();
+      //      lblHiddenTotal.Text = _view.TotalLogLines != _view.SystemTotalLogLine ?
+      //         (_view.SystemTotalLogLine - _table.TotalDataLines).ToString() :
+      //         "";
 
-            lblPage.Text = _table.TotalPages.ToString();
-            HelperSetLevelFontStrikeOut(lblHiddenTotalTxt, lblHiddenTotal.Text != "");
+      //      lblPage.Text = _table.TotalPages.ToString();
+      //      HelperSetLevelFontStrikeOut(lblHiddenTotalTxt, lblHiddenTotal.Text != "");
 
-         }));
-         QueueDrawRequest("SetView");
-      }
+      //   }));
+      //   QueueDrawRequest("SetView");
+      //}
       //private string GetMaxLength(int value)
       //{
       //   if (value > 10000000) return "999999999";
@@ -563,13 +572,12 @@ namespace logAxe
       private void masterPanel_PreviewKeyDown(object sender, PreviewKeyDownEventArgs e)
       {
 
-      }      
+      }
       private void SetInfoDialogData()
       {
          var (lineNo, totalLines, lineInfo) = _table.GetCurrentSelectedLineInfo();
          _lineInfoDlg.SetCurrentLine(lineNo, totalLines, lineInfo);
       }
-
       private string GetMSFormattedHtml(string html)
       {
          //https://docs.microsoft.com/en-us/windows/win32/dataxchg/html-clipboard-format
@@ -583,7 +591,7 @@ namespace logAxe
          headerSb.Append("EndFragment:000000004" + Environment.NewLine);
          headerSb.Append("StartSelection:000000003" + Environment.NewLine);
          headerSb.Append("EndSelection:000000004" + Environment.NewLine);
-         
+
          var indexOfStartHtml = Encoding.ASCII.GetByteCount(headerSb.ToString());
 
          headerSb.AppendLine(@"<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 4.0 Transitional//EN"">");
@@ -609,22 +617,22 @@ namespace logAxe
 
          return headerSb.ToString();
       }
-
       private void CopyLinesToClipBoard()
       {
          try
          {
             var lst = _table.GetAllSelectedLogLines();
-            
+
             if (lst.Count == 0)
                return;
 
             var selectedPLines = new StringBuilder();
-            var selectedHLines = new StringBuilder();            
+            var selectedHLines = new StringBuilder();
 
             foreach (var line in lst)
             {
                var logType = line.LogType.ToString().Substring(0, 1);
+               //TODO : move to logAxeLibCommon the default time format.
                var timeStamp = line.TimeStamp.ToString(ViewCommon.DefaultDateTimeFmt);
                var logText = line.Msg.Length > 120 ? line.Msg.Substring(0, 120).Replace("\n", "") + "..." : line.Msg.Replace("\n", "");
                var lineColor = "red";
@@ -651,8 +659,8 @@ namespace logAxe
             clipText.SetData(DataFormats.Html, GetMSFormattedHtml(selectedHLines.ToString()));
             clipText.SetData(DataFormats.Text, selectedPLines.ToString());
             clipText.SetData(DataFormats.UnicodeText, selectedPLines.ToString());
-            Clipboard.SetDataObject(clipText, true);            
-         }         
+            Clipboard.SetDataObject(clipText, true);
+         }
          catch (Exception ex)
          {
             MessageBox.Show(ex.ToString(), "Error in copy to clipboard", MessageBoxButtons.OK);
@@ -697,12 +705,12 @@ namespace logAxe
       }
       private void lblHiddenTotal_Click(object sender, EventArgs e)
       {
-         HelperSetFilter(new TermFilter());
+         ResetFilter();
       }
       private void SetLogTypeFilter(LogType logType)
       {
-         //No filtering required when there is any log file in system.
-         if (_view.SystemTotalLogLine == 0)
+         
+         if (_table.ViewFrame.SystemTotalLogLine == 0)
             return;
 
          if (Control.ModifierKeys == Keys.Control)
@@ -726,7 +734,11 @@ namespace logAxe
                       System.Drawing.GraphicsUnit.Point,
                       ((byte)(0)));
       }
-      private void HelperSetFilter(TermFilter filter, bool assignToText=false)
+      private void ResetFilter()
+      {
+         HelperSetFilter(new TermFilter());
+      }
+      private void HelperSetFilter(TermFilter filter, bool assignToText = false)
       {
          if (CurrentFilter.GetHashCode() != filter.GetHashCode())
          {
@@ -752,37 +764,41 @@ namespace logAxe
                       filter.FilterTraces[0] ? System.Drawing.FontStyle.Regular : System.Drawing.FontStyle.Strikeout,
                       System.Drawing.GraphicsUnit.Point,
                       ((byte)(0)));
+         ViewCommon.Channel.SendMsg(new UnitCmd(
+            opCode: WebFrameWork.CMD_SET_FILTER, 
+            name: UniqueId, 
+            value: filter)
+            );
+         
+         //Task.Run(() =>
+         //{
+         //   var statTime = DateTime.Now;
+         //   lblFiterBoxTxt.Invoke(new Action(() => { lblFiterBoxTxt.Text = $"{FilterBoxLbl}"; }));
 
-         Task.Run(() =>
-         {
-            var statTime = DateTime.Now;
-            lblFiterBoxTxt.Invoke(new Action(() => { lblFiterBoxTxt.Text = $"{FilterBoxLbl}"; }));            
+         //   if (filter.IsMasterFilter)
+         //   {
+         //      //TODo : What view.
+         //      //_queueWork.Add(new Work(Work.WType.SetNewView, ViewCommon.Engine.GetMasterFrame()));
+         //      FilterMessage = "";
+         //   }
+         //   else if (filter.IsValidFilter)
+         //   {
+         //      //TOD : What view
+         //      //var view = ViewCommon.Engine.Filter(filter);
+         //      //_queueWork.Add(new Work(Work.WType.SetNewView, view));
+         //      FilterMessage = "Filter applied";
+         //      var totalTime = DateTime.Now - statTime;
 
-            if (filter.IsMasterFilter)
-            {
-               _queueWork.Add(new Work(Work.WType.SetNewView, ViewCommon.Engine.GetMasterFrame()));
-               FilterMessage = "";
-            }
-            else if (filter.IsValidFilter)
-            {
-               var view = ViewCommon.Engine.Filter(filter);
-               _queueWork.Add(new Work(Work.WType.SetNewView, view));
-               FilterMessage = "Filter applied";
-               var totalTime = DateTime.Now - statTime;
-
-               lblFiterBoxTxt.Invoke(new Action(() => { lblFiterBoxTxt.Text = $"{FilterBoxLbl} [ {GetSeconds(totalTime)} ]"; }));
+         //      lblFiterBoxTxt.Invoke(new Action(() => { lblFiterBoxTxt.Text = $"{FilterBoxLbl} [ {GetSeconds(totalTime)} ]"; }));
 
 
-            }
-         });
+         //   }
+         //});
       }
-
-      private string GetSeconds(TimeSpan span)
-      {
-         return (span.TotalSeconds < 0) ? $"{span.TotalSeconds:#.#}s" : $"{span.TotalSeconds:.###}s";
-      }
-
-
+      //private string GetSeconds(TimeSpan span)
+      //{
+      //   return (span.TotalSeconds < 0) ? $"{span.TotalSeconds:#.#}s" : $"{span.TotalSeconds:.###}s";
+      //}
       private void btnCloneView_Click(object sender, EventArgs e)
       {
          ViewCommon.StartMain();
@@ -791,165 +807,369 @@ namespace logAxe
       {
          ViewCommon.ShowPropertyScreen();
       }
-      private void DoWork()
+      private void DoWork(UnitCmd command)
       {
-         _table.AddColumn(new TableColumn("LineNo"));
-         _table.AddColumn(new TableColumn("ProcId") { Width = 20, Visible = false });
-         _table.AddColumn(new TableColumn("ThId") { Width = 20, Visible = false });
-         _table.AddColumn(new TableColumn("Category") { Width = 100, Visible = false });
-         _table.AddColumn(new TableColumn("TimeStamp"));
-         _table.AddColumn(new TableColumn("ImageNo") { Width = 20, DisplayName = "" });
-         _table.AddColumn(new TableColumn("Message"));
 
-         _table["LineNo"].Visible = _userConfig.ShowLineNo;
+         //f (command.OpCode != WebFrameWork.CMD_GET_LINES)
+         _logger?.Debug($"processing, {command.OpCode}");
+            
 
-         while (!_cancelToken.IsCancellationRequested)
+         switch (command.OpCode)
          {
-            if (!IsHandleCreated)
-            {
-               Thread.Sleep(100);
-               continue;
-            }
-
-            var work = _queueWork.Take(_cancelToken.Token);
-
-            switch (work.Type)
-            {
-               case Work.WType.Message:
-                  DoWork_Message((ILogAxeMessage)work.RealWork);
-                  break;
-
-               case Work.WType.SetNewView:
-                  SetView((LogFrame)work.RealWork);
-                  break;
-
-               case Work.WType.Draw:
-                  NamedLogger.PublishLogs = true;
-                  Interlocked.Decrement(ref _totalDraws);
-                  if (Interlocked.Read(ref _totalDraws) > 2)
-                  {
-                     continue;
-                  }
-                  //var stp = new Stopwatch(); stp.Start();
-                  DoWork_Draw((string)work.RealWork);
-                  //stp.Stop();
-                  //Debug.WriteLine($" {stp.Elapsed}");
-                  break;
-
-            }
+            case WebFrameWork.CMD_SET_INFO:               
+               var frame = command.GetData<WebFrame>();
+               _table.SetViewFrame(frame);
+               if (_table.ViewFrame.TotalLogLines > 0)
+               {
+                  _table.CurrentDataLine = 0;
+                  _table.WebLogLinesData = null;
+                  ViewCommon.Channel.SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_GET_LINES, name: UniqueId, value: new UnitCmdGetLines() { StartLine = _table.CurrentDataLine, Length = _table.RowsPerPage }));                  
+               }
+               DoWork_UpdateStatInfo();
+               break;
+            case WebFrameWork.CMD_SET_LINES:               
+               var val = command.GetData<WebLogLines>();
+               if (val.LogLines.Count <= _table.RowsPerPage) { 
+                  DoWork_Draw2(WebFrameWork.CMD_GET_LINES, val);
+               }
+               break;
+            case WebFrameWork.CMD_BST_NEW_VIEW:               
+               //Now we need to get the view from the server.
+               ViewCommon.Channel.SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_BST_NEW_VIEW, name: UniqueId));
+               ViewCommon.Channel.SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_GET_LINES, name: UniqueId, value: new UnitCmdGetLines() { StartLine = _table.CurrentDataLine, Length = _table.RowsPerPage }));
+               break;
+            case WebFrameWork.CMD_BST_NEW_THEME:
+               _userConfig = ViewCommon.GetConfig();
+               OnNewNotepadChange?.Invoke(CntrlTextViewerMsg.SetTitle);
+               QueueDrawRequest("on new theme");
+               lstSavedFilter.Invoke(new Action(() => {
+                  LoadFilter();
+               }));
+               
+               break;
+            default:
+               _logger?.Error($"No handling for {command.OpCode}");
+               break;
          }
-      }//Dowork
-      private void DoWork_Message(ILogAxeMessage message)
+      }
+      private void DoWork_UpdateStatInfo()
+      {
+         _table.SetTotalLines(_table.ViewFrame.TotalLogLines);
+         masterPanel.Invoke(new Action(() =>
+         {
+            lblTrace.Text = _table.ViewFrame.Trace.ToString();
+            lblError.Text = _table.ViewFrame.Error.ToString();
+            lblWarning.Text = _table.ViewFrame.Warning.ToString();
+            lblInfo.Text = _table.ViewFrame.Info.ToString();
+            lblTotal.Text = _table.ViewFrame.TotalLogLines.ToString();
+            lblHiddenTotal.Text = _table.ViewFrame.TotalLogLines != _table.ViewFrame.SystemTotalLogLine ?
+               (_table.ViewFrame.SystemTotalLogLine - _table.TotalDataLines).ToString() :
+               "";
+            lblTotalFiles.Text = _table.ViewFrame.TotalLogFiles.ToString();
+            HelperSetLevelFontStrikeOut(lblHiddenTotalTxt, lblHiddenTotal.Text != "");
+         }));
+
+      }
+      private void DoWork_Draw2(string msg, WebLogLines data = null)
       {
          try
          {
-            switch (message.MessageType)
+            _lockDraw.Wait();
+            if (data != null)
             {
-               case LogAxeMessageEnum.NewViewAnnouncement:
-                  if (!_isNotepad)
-                     SetView(ViewCommon.Engine.GetMasterFrame());
-                  break;
-               case LogAxeMessageEnum.FileParseProgress:
-                  var fpPrg = (FileParseProgressEvent)message;
-                  pnlShowProgress.Invoke(new Action(() =>
-                      {
-                         pnlShowProgress.Visible = !fpPrg.ParseComplete;
-
-                         prgFileParsed.Maximum = (int)fpPrg.TotalFileCount;
-                         prgFileParsed.Value = (int)fpPrg.TotalFileParsedCount;
-
-                         prgFileLoad.Maximum = (int)fpPrg.TotalFileCount;
-                         prgFileLoad.Value = (int)fpPrg.TotalFileLoadedCount;
-
-                         lblParsingUpdate.Text = Utils.Percentage(fpPrg.TotalFileLoadedCount, fpPrg.TotalFileCount);
-                         lblIndexingUpdate.Text = Utils.Percentage(fpPrg.TotalFileParsedCount, fpPrg.TotalFileCount);
-
-                         UpdateTotal(fpPrg);
-
-                      }));
-                  if (fpPrg.ParseComplete)
-                  {
-                     if (null != _fld)
-                     {
-                        _fld.Invoke(new Action(() =>
-                        {
-                           _fld.RefreshList();
-                        }));
-                     }
-                  }
-                  break;
-
-               case LogAxeMessageEnum.FileParseEnd:
-                  SetView(ViewCommon.Engine.GetMasterFrame());
-                  if (null != _fld)
-                  {
-                     _fld.Invoke(new Action(() =>
-                     {
-                        _fld.RefreshList();
-                     }));
-                  }
-                  break;
-
-               case LogAxeMessageEnum.NewUserConfiguration:
-                  _userConfig = ViewCommon.UserConfig;
-                  masterPanel.Invoke(new Action(() =>
-                  {
-                     SetForeColor();
-                  }));
-                  _table.Dirty = true;
-                  QueueDrawRequest($"LogAxeMessageEnum.NewUserConfiguration");
-                  break;
-               case LogAxeMessageEnum.BroadCastGlobalLine:
-                  {
-                     // We got the global line now lets search in the local view.
-                     // Either we will have an empty view (because this view does not have any line
-                     if (!_view.IsEmpty)
-                     {
-                        var lineNo = _view.GetGlobalLine(((CurrentGlobalLine)message).GlobalLine);
-                        _table.SetGlobalLine(lineNo);
-                        QueueDrawRequest($"MessageType.BroadCastGlobalLine");
-                     }
-                  }
-                  break;
-               case LogAxeMessageEnum.NotepadAddedOrRemoved:
-                  masterPanel.Invoke(new Action(() =>
-                  {
-                     AddMenuItem();
-                  }));
-                  break;
-               case LogAxeMessageEnum.AddLineToNotepadEvent:                  
-                  if (_isNotepad)
-                  {
-                     var notepadEvent = (AddLineToNotepadEvent)message;
-                     if (notepadEvent.NotebookName == NotepadName)
-                     {  
-                        _view.AddGlobalLines(notepadEvent.GlobalLine);
-                        SetView(_view);
-                        QueueDrawRequest($"LogAxeMessageEnum.AddLineToNotepadEvent");
-                     }
-
-                  }
-                  break;
-
-               case LogAxeMessageEnum.NewMainFrmAddRemoved:
-               case LogAxeMessageEnum.AwakeAllWindows:
-                  OnNewNotepadChange?.Invoke(message);
-                  break;
-
-               case LogAxeMessageEnum.FilterChanged:
-                  lstSavedFilter.Invoke(
-                     new Action(() => {
-                        LoadFilter();
-                     }
-                     ));
-                  
-                  break;
+               _table.WebLogLinesData = data;
+               //_logger?.Info($"Draw {msg}, adding new data, {data.StartLogLine} - {data.LogLines.Count + data.StartLogLine}, {data.LogLines.Count}");
             }
+            _drawRequired = true;
+         }
+         finally {
+            _lockDraw.Release();
+         }
+      }      
+      private void DoWork_Draw3(object sender, EventArgs e)
+      {
+         
+         try
+         {
+            //var startTime = DateTime.Now;
+            _lockDraw.Wait();
+            _drawRequired = _drawRequired || _table.Dirty;
+            if (
+               !IsHandleCreated||
+               !_drawRequired ||
+               _table.WebLogLinesData == null ||
+               !(_table.CurrentDataLine == _table.WebLogLinesData.StartLogLine))
+               return;
+            _table.Dirty = false;
+            _newCanvas.gc.Clear(_userConfig.BackgroundColor);
+
+
+            Draw_Step1_TableHeader();
+            Draw_Step2_DataLines();
+
+            if (_table.TotalDataLines != 0 && _table.TotalDataLines >= _table.RowsPerPage)
+            {
+               Draw_Step3_Scrollbar(_table);
+            }
+
+
+            if (!masterPanel.InvokeRequired)
+            {
+               //masterPanel.BackgroundImage = _newCanvas.bmp;
+               lblPage.Text = _table.TotalPages == 0 ? "" : $"{_table.CurrentPage + 1} of {_table.TotalPages}";
+               if (lblPage.Text.Length > 9)
+               {
+                  lblPage.Text = $"{_table.CurrentPage + 1} of {_table.TotalPages}";
+               }
+               masterPanel.CreateGraphics().DrawImage(_newCanvas.bmp, 0, 0);
+            }
+
+            //_logger?.Debug($"Draw took {(DateTime.Now - startTime).TotalMilliseconds}");
+
+
          }
          catch (Exception ex)
          {
-            _logger.Error(ex.ToString());
+            _logger?.Error("Error in draw, " + ex.ToString());
          }
+         finally
+         {
+            _drawRequired = false;
+            //_logger?.Info($"Draw {msg}, complete");
+            _lockDraw.Release();
+         }
+         
+      }
+      private void Draw_Step1_TableHeader()
+      {
+         if (!_userConfig.ShowTableHeader)
+         {
+            return;
+         }
+         string addTextToMsg = "";
+         for (int ndx = 0; ndx < _table.TotalColumns; ndx++)
+         {
+            if (string.IsNullOrEmpty(_table[ndx].DisplayName) || !_table[ndx].Visible)
+               continue;
+            switch (_table[ndx].DisplayName)
+            {
+               default:
+                  _newCanvas.gc.DrawString(
+                      _table[ndx].DisplayName,
+                      _userConfig.TableHeaderFont,
+                      new SolidBrush(_userConfig.TableHeaderForeGroundColor),
+                      new PointF(
+                          _table.Location.X + _table[ndx].StartLoc,
+                          _table.Location.Y + _table.OffsetStringData)
+                      );
+                  break;
+
+               case "Message":
+                  _newCanvas.gc.DrawString(
+                      $"{_table[ndx].DisplayName}{addTextToMsg}",
+                      _userConfig.TableHeaderFont,
+                      new SolidBrush(_userConfig.TableHeaderForeGroundColor),
+                      new PointF(
+                          _table.Location.X + _table[ndx].StartLoc,
+                          _table.Location.Y + _table.OffsetStringData)
+                      );
+                  break;
+            }
+         }
+
+      }
+      private void Draw_Step2_DataLines()
+      {
+         if (_table.WebLogLinesData == null || _table.WebLogLinesData.LogLines.Count == 0)
+         {
+            return;
+         }
+         //_logger?.Info(
+         //   $"Draw data {_table.CurrentDataLine == _table.WebLogLinesData.StartLogLine}[{_table.CurrentDataLine}, {_table.WebLogLinesData.StartLogLine}]"+
+         //   $"{_table.WebLogLinesData.LogLines.Count == _table.RowsPerPage}[{_table.WebLogLinesData.LogLines.Count}, {_table.RowsPerPage}]");
+         var brushes = new SolidBrush[] {
+                        new SolidBrush(_userConfig.MsgErrorFontColor),
+                        new SolidBrush(_userConfig.MsgInfoFontColor),
+                        new SolidBrush(_userConfig.MsgTraceFontColor),
+                        new SolidBrush(_userConfig.MsgWarningFontColor)
+                    };
+         var brushes_blur = new SolidBrush[] {
+                        new SolidBrush(_userConfig.MsgErrorFontColor),
+                        new SolidBrush(_userConfig.MsgInfoFontColor),
+                        new SolidBrush(_userConfig.MsgTraceFontColor),
+                        new SolidBrush(_userConfig.MsgWarningFontColor)
+                    };
+         for (int ndx = 0; ndx < brushes.Length; ndx++)
+         {
+            var color = brushes_blur[ndx].Color;
+            brushes_blur[ndx].Color = Color.FromArgb(color.A / 2, color.R, color.G, color.B);
+         }
+
+         var currentLine = _table.CurrentDataLine;
+         string prevTime = "";
+
+         ////Draw the gobal line indicator first.
+         //if (_table.ShowGlobalLine)
+         //{
+         //   var line = Math.Abs(_table.CurrentGlobalLine);
+         //   if (line >= _table.CurrentDataLine && line <= (_table.CurrentDataLine + _table.RowsPerPage))
+         //   {
+         //      if (_table.CurrentGlobalLine < 0)
+         //      {
+         //         float rowYPos = (_table.RowsHeight * (((line - 1) - (_table.CurrentDataLine)) + 1)) + (_table.Location.Y + _table.OffsetStringData);
+         //         _newCanvas.gc.DrawLine(
+         //             new Pen(_userConfig.GlobalLineSelected, _userConfig.GlobalLineSelectedWidth),
+         //             0,
+         //             rowYPos,
+         //             _table.Size.Width,
+         //             rowYPos);
+         //      }
+         //      else
+         //      {
+         //         float rowYPos = (_table.RowsHeight * ((line - _table.CurrentDataLine) + 1)) + (_table.Location.Y + _table.OffsetStringData);
+         //         _newCanvas.gc.FillRectangle(
+         //             new SolidBrush(_userConfig.GlobalLineSelected),
+         //             0,
+         //             rowYPos,
+         //             _table.Size.Width,
+         //             _table.RowsHeight);
+         //      }
+
+
+         //   }
+         //}
+         var brushLineBkg = new SolidBrush(_userConfig.TableLineSelectedBkg);
+         var brushMsgBkg = new SolidBrush(_userConfig.TableSearchLinesBkg);
+         for (int ndx = 0; ndx < _table.RowsPerPage; ndx++)
+         {
+            if (currentLine < _table.TotalDataLines)
+            {
+               var (isRowSelected, rowData) = _table.GetLine(currentLine);
+               currentLine++;
+
+               //float rowYPos = (_table.RowsHeight * (ndx + 1)) + (_table.Location.Y + _table.OffsetStringData);
+               float rowYPos = _table.GetYPos(ndx);
+
+               //TODO : future
+               //if (currentLine > 10 && currentLine < 20)
+               //{
+               //   DrawMsgBackground(rowYPos, brushMsgBkg);
+               //}
+
+               if (isRowSelected && !_table.ShowGlobalLine)
+               {
+                  DrawLineBackground(rowYPos, brushLineBkg);
+               }
+
+               foreach (var col in _table.Columns)
+               {
+                  if (!col.Visible) continue;
+                  switch (col.Name)
+                  {
+                     case "LineNo":
+                        _newCanvas.gc.DrawString(
+                            $"{currentLine}",
+                            _userConfig.TableBodyFont,
+                            new SolidBrush(_userConfig.MsgTraceFontColor),
+                            _table.Location.X + col.StartLoc,
+                            rowYPos);
+                        break;
+
+                     case "TimeStamp":
+
+                        string newTime = _table.ShowTimeSelected == TableSkeleton.ShowTime.Default ?
+                           $"{rowData.TimeStamp.ToString(_userConfig.Column1TimeStampFormat)}" :
+                           $"{(rowData.TimeStamp - _table.ShowTime_Default_StartTime)}"
+                           ;
+                        if (prevTime != newTime)
+                        {
+                           prevTime = newTime;
+                           _newCanvas.gc.DrawString(
+                               newTime,
+                               _userConfig.TableBodyFont,
+                              new SolidBrush(_userConfig.MsgTraceFontColor),
+                               _table.Location.X + col.StartLoc,
+                               rowYPos
+                               );
+                        }
+                        break;
+                     case "ThId":
+                        _newCanvas.gc.DrawString(
+                            $"{rowData.ThreadNo}",
+                            _userConfig.TableBodyFont,
+                            new SolidBrush(_userConfig.MsgTraceFontColor),
+                            _table.Location.X + col.StartLoc,
+                            rowYPos);
+                        break;
+                     case "Category":
+                        _newCanvas.gc.DrawString(
+                             $"{(rowData.Category.Length <= 10 ? rowData.Category : rowData.Category.Substring(0, 10) + "~")}",
+                            _userConfig.TableBodyFont,
+                            new SolidBrush(_userConfig.MsgTraceFontColor),
+                            _table.Location.X + col.StartLoc,
+                            rowYPos);
+                        break;
+                     case "ProcId":
+                        _newCanvas.gc.DrawString(
+                            $"{rowData.ProcessId}",
+                            _userConfig.TableBodyFont,
+                            new SolidBrush(_userConfig.MsgTraceFontColor),
+                            _table.Location.X + col.StartLoc,
+                            rowYPos);
+                        break;
+
+                     case "ImageNo":
+                        if (rowData.StackTraceId != LogLine.INVALID)
+                        {
+                           _newCanvas.gc.DrawImage(Properties.Resources.stack,
+                              _table.Location.X + col.StartLoc,
+                              rowYPos + 2);
+                        }
+                        break;
+
+                     case "Message":
+                        var lineData = rowData.Msg.Replace("\n", "").Replace("\r", "").TrimStart();
+                        if (_userConfig.FeatureShowCategoryWithMsg)
+                        {
+                           lineData = $"[{rowData.Category}], {lineData}";
+                        }
+                        _newCanvas.gc.DrawString(
+
+                            _userConfig.DebugUI ?
+                            $"{rowData.GlobalLine}| {rowData.FileNumber}| {rowData.LineNumber}| {lineData}" :
+                            $"{lineData}",
+
+                            _userConfig.TableBodyFont,
+                            brushes[(int)rowData.LogType],
+                            _table.Location.X + col.StartLoc,
+                            rowYPos);
+                        break;
+                  }
+               }
+            }
+            else
+            {
+               break;
+            }
+         }
+
+      }
+      private void Draw_Step3_Scrollbar(TableSkeleton table)
+      {
+         var color = _userConfig.ScrollBarColor;//TODO, color of the scroll bar should be configurable.
+
+         _newCanvas.gc.DrawLine(new Pen(color, 1),
+             table.ScrollBarStartLoc,
+             table.ScrollBarStopLoc);
+
+         table.CirclePoint = GetRectF(
+             table.ScrollBarStartLoc.X,
+             table.ScrollBarStartLoc.Y + (float)(table.CurrentPage / table.ScrollPagesPerPixel),
+             table.ScrollBarCircleRadius);
+
+         _newCanvas.gc.FillEllipse(
+             new SolidBrush(color),
+             table.CirclePoint);
       }
       private void AddMenuItem()
       {
@@ -963,304 +1183,297 @@ namespace logAxe
             item.Click += new EventHandler(newNotepadToolStripMenuItem_Click);
             copyToNotepadToolStripMenuItem.DropDownItems.Add(item);
          }
-      }      
-      private void UpdateTotal(FileParseProgressEvent fpPrg)
-      {
-         lblAppMemSize.Text = Utils.GetHumanSize(System.Diagnostics.Process.GetCurrentProcess().PrivateMemorySize64, true);
-         lblTotalFiles.Text = $"{fpPrg.TotalFileLoadedCount} of {fpPrg.TotalFileCount}";
-         lblFileSize.Text = $"{Utils.GetHumanSize(fpPrg.TotalFileSizeLoaded)}";
-      }
-      private void DoWork_DrawScrollBar(TableSkeleton table)
-      {
-         var color = Color.LightGray;
-
-         _newCanvas.gc.DrawLine(new Pen(color, 1),
-             table.ScrollBarStartLoc,
-             table.ScrollBarStopLoc);
-
-         table.CirclePoint = GetRectF(
-             table.ScrollBarStartLoc.X,
-             table.ScrollBarStartLoc.Y + (float)(table.CurrentPage / table.ScrollPagesPerPixel),
-             table.ScrollBarCirclRadius);
-
-         _newCanvas.gc.FillEllipse(
-             new SolidBrush(color),
-             table.CirclePoint);
-      }
-      private void DoWork_ResizeControl()
-      {         
-         _table.Resize(_newCanvas.bmp.Size);
       }
       private void QueueDrawRequest(string msg)
       {
-         _queueWork.Add(new Work(Work.WType.Draw, msg));
-         Interlocked.Increment(ref _totalDraws);
-      }
-      private void DoWork_RequestDrawWithFlag(string msg)
-      {
-         _table.Dirty = true;
-         QueueDrawRequest(msg);
-      }
-      private void DoWork_Draw(string drawType)
-      {
          try
          {
-            if (_newCanvas.SetSize(masterPanel.Size) || _table.Dirty)
+            _lockDraw.Wait();
+            if (_newCanvas.SetSize(masterPanel.Size))
             {
-               DoWork_ResizeControl();
-               _table.Dirty = false;
+               _table.Resize(_newCanvas.bmp.Size);               
             }
-
-            _newCanvas.gc.Clear(_userConfig.BackgroundColor);
-
-            //Draw table
-
-            if (_userConfig.ShowTableHeader)
-            {
-               var rect = new RectangleF(
-                   _table.Location.X,
-                   _table.Location.Y,
-                   _table.Size.Width - (_table.ScrollBarOffsetFromRight + 30),
-                   _table.RowsHeight);
-            
-               string addTextToMsg =
-                   _userConfig.DebugUI ?
-                   $"-{DateTime.Now.ToString(_userConfig.Column1TimeStampFormat)} - {Interlocked.Read(ref _totalDraws)} - {drawType}" :
-                   "";
-
-               var (enbled, timeDiff) = _table.GetSelectedLineDiff();
-               if (enbled)
-               {
-                  addTextToMsg += $"- {timeDiff}";
-               }
-
-               for (int ndx = 0; ndx < _table.TotalColumns; ndx++)
-               {
-                  if (string.IsNullOrEmpty(_table[ndx].DisplayName) || !_table[ndx].Visible)
-                     continue;
-                  switch (_table[ndx].DisplayName)
-                  {
-                     default:
-                        _newCanvas.gc.DrawString(
-                            _table[ndx].DisplayName,
-                            _userConfig.TableHeaderFont,
-                            new SolidBrush(_userConfig.TableHeaderForeGroundColor),
-                            new PointF(
-                                _table.Location.X + _table[ndx].StartLoc,
-                                _table.Location.Y + _table.OffsetStringData)
-                            );
-                        break;
-
-                     case "Message":
-                        _newCanvas.gc.DrawString(
-                            $"{_table[ndx].DisplayName}{addTextToMsg}",
-                            _userConfig.TableHeaderFont,
-                            new SolidBrush(_userConfig.TableHeaderForeGroundColor),
-                            new PointF(
-                                _table.Location.X + _table[ndx].StartLoc,
-                                _table.Location.Y + _table.OffsetStringData)
-                            );
-                        break;
-                  }
-               }
-            }
-
-            var brushes = new SolidBrush[] {
-                        new SolidBrush(_userConfig.MsgErrorFontColor),
-                        new SolidBrush(_userConfig.MsgInfoFontColor),
-                        new SolidBrush(_userConfig.MsgTraceFontColor),
-                        new SolidBrush(_userConfig.MsgWarningFontColor)
-                    };
-            var brushes_blur = new SolidBrush[] {
-                        new SolidBrush(_userConfig.MsgErrorFontColor),
-                        new SolidBrush(_userConfig.MsgInfoFontColor),
-                        new SolidBrush(_userConfig.MsgTraceFontColor),
-                        new SolidBrush(_userConfig.MsgWarningFontColor)
-                    };
-
-            for (int ndx = 0; ndx < brushes.Length; ndx++)
-            {
-               var color = brushes_blur[ndx].Color;
-               brushes_blur[ndx].Color = Color.FromArgb(color.A / 2, color.R, color.G, color.B);
-            }
-
-            if (_view != null)
-            {
-               var currentLine = _table.CurrentDataLine;
-               string prevTime = "";
-
-               //Draw the gobal line indicator first.
-               if (_table.ShowGlobalLine)
-               {
-                  var line = Math.Abs(_table.CurrentGlobalLine);
-                  if (line >= _table.CurrentDataLine && line <= (_table.CurrentDataLine + _table.RowsPerPage))
-                  {
-                     if (_table.CurrentGlobalLine < 0)
-                     {
-                        float rowYPos = (_table.RowsHeight * (((line - 1) - (_table.CurrentDataLine)) + 1)) + (_table.Location.Y + _table.OffsetStringData);
-                        _newCanvas.gc.DrawLine(
-                            new Pen(_userConfig.GlobalLineSelected, _userConfig.GlobalLineSelectedWidth),
-                            0,
-                            rowYPos,
-                            _table.Size.Width,
-                            rowYPos);
-                     }
-                     else
-                     {
-                        float rowYPos = (_table.RowsHeight * ((line - _table.CurrentDataLine) + 1)) + (_table.Location.Y + _table.OffsetStringData);
-                        _newCanvas.gc.FillRectangle(
-                            new SolidBrush(_userConfig.GlobalLineSelected),
-                            0,
-                            rowYPos,
-                            _table.Size.Width,
-                            _table.RowsHeight);
-                     }
-
-
-                  }
-               }
-
-               for (int ndx = 0; ndx < _table.RowsPerPage; ndx++)
-               {
-                  if (currentLine < _table.TotalDataLines)
-                  {
-                     var (isRowSelected, rowData) = _table.GetLine(currentLine);
-                     currentLine++;
-
-                     float rowYPos = (_table.RowsHeight * (ndx + 1)) + (_table.Location.Y + _table.OffsetStringData);
-
-                     if (isRowSelected && !_table.ShowGlobalLine)
-                     {
-                        _newCanvas.gc.FillRectangle(
-                            new SolidBrush(Color.FromArgb(30, Color.Blue)),
-                            0,
-                            rowYPos,
-                            _table.Size.Width,
-                            _table.RowsHeight);
-                     }
-
-                     foreach (var col in _table.Columns)
-                     {
-                        if (!col.Visible) continue;
-                        switch (col.Name)
-                        {
-                           case "LineNo":
-                              _newCanvas.gc.DrawString(
-                                  $"{currentLine}",
-                                  _userConfig.TableBodyFont,
-                                  new SolidBrush(_userConfig.MsgTraceFontColor),
-                                  _table.Location.X + col.StartLoc,
-                                  rowYPos);
-                              break;
-
-                           case "TimeStamp":
-                              
-                              string newTime = _table.ShowTimeSelected == TableSkeleton.ShowTime.Default ?
-                                 $"{rowData.TimeStamp.ToString(_userConfig.Column1TimeStampFormat)}" :
-                                 $"{(rowData.TimeStamp -_table.ShowTime_Default_StartTime)}"
-                                 ;
-                              if (prevTime != newTime)
-                              {
-                                 prevTime = newTime;
-                                 _newCanvas.gc.DrawString(
-                                     newTime,
-                                     _userConfig.TableBodyFont,
-                                    new SolidBrush(_userConfig.MsgTraceFontColor),
-                                     _table.Location.X + col.StartLoc,
-                                     rowYPos
-                                     );
-                              }
-                              break;
-                           case "ThId":
-                              _newCanvas.gc.DrawString(
-                                  $"{rowData.ThreadNo}",
-                                  _userConfig.TableBodyFont,
-                                  new SolidBrush(_userConfig.MsgTraceFontColor),
-                                  _table.Location.X + col.StartLoc,
-                                  rowYPos);
-                              break;
-                           case "Category":
-                              _newCanvas.gc.DrawString(
-                                   $"{(rowData.Category.Length <= 10 ? rowData.Category : rowData.Category.Substring(0, 10) + "~")}",
-                                  _userConfig.TableBodyFont,
-                                  new SolidBrush(_userConfig.MsgTraceFontColor),
-                                  _table.Location.X + col.StartLoc,
-                                  rowYPos);
-                              break;
-                           case "ProcId":
-                              _newCanvas.gc.DrawString(
-                                  $"{rowData.ProcessId}",
-                                  _userConfig.TableBodyFont,
-                                  new SolidBrush(_userConfig.MsgTraceFontColor),
-                                  _table.Location.X + col.StartLoc,
-                                  rowYPos);
-                              break;
-
-                           case "ImageNo":
-                              if (rowData.StackTraceId != LogLine.INVALID)
-                              {
-                                 _newCanvas.gc.DrawImage(Properties.Resources.stack, 
-                                    _table.Location.X + col.StartLoc, 
-                                    rowYPos + 2);
-                              }
-                              break;
-
-                           case "Message":
-                              var lineData = rowData.Msg.Replace("\n", "").Replace("\r", "").TrimStart();
-                              _newCanvas.gc.DrawString(
-                                 
-                                  _userConfig.DebugUI ?
-                                  $"{rowData.GlobalLine}| {rowData.FileNumber}| {rowData.LineNumber}| {lineData}" :
-                                  $"{lineData}",
-
-                                  _userConfig.TableBodyFont,
-                                  brushes[(int)rowData.LogType],
-                                  _table.Location.X + col.StartLoc,
-                                  rowYPos);
-                              break;
-                        }
-                     }
-                  }
-                  else
-                  {
-                     break;
-                  }
-               }
-            }
-            if (_table.TotalDataLines != 0)
-            {
-               DoWork_DrawScrollBar(_table);
-            }
-
-            masterPanel.Invoke(new Action(() =>
-            {
-               lblPage.Text = _table.TotalPages == 0 ? "" : $"{_table.CurrentPage + 1} of {_table.TotalPages}";
-               if (lblPage.Text.Length > 9)
-               {
-                  lblPage.Text = $"{_table.CurrentPage + 1} of {_table.TotalPages}";
-               }
-               masterPanel.CreateGraphics().DrawImage(_newCanvas.bmp, 0, 0);
-               if (_lineInfoDlg.Visible)
-               {
-                  SetInfoDialogData();
-               }
-
-               UpdateTotal(ViewCommon.Engine.GetStartInfo());
-            }));
-
+            //_logger?.Debug($"QueueDrawRequest: {msg}");
+            ViewCommon.Channel.SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_GET_LINES, name: UniqueId, value: new UnitCmdGetLines() { StartLine = _table.CurrentDataLine, Length = _table.RowsPerPage }));
          }
-         catch (InvalidOperationException ex1)
-         {
-            _logger.Error(ex1.ToString());
-            Thread.Sleep(200);
-            QueueDrawRequest($"Invalid operation");
+         finally {
+            _lockDraw.Release();
          }
-         catch (Exception ex)
-         {
-            Thread.Sleep(200);
-            _logger.Error(ex.ToString());
-            QueueDrawRequest($"Exception.");
-         }
+      }      
+      //private void DoWork_Draw()
+      //{
+      //   try
+      //   {
+      //      if (_newCanvas.SetSize(masterPanel.Size) || _table.Dirty)
+      //      {
+      //         _table.Resize(_newCanvas.bmp.Size);
+      //         _table.Dirty = false;
+      //      }
+
+      //      _newCanvas.gc.Clear(_userConfig.BackgroundColor);
+
+      //      //Draw table
+
+      //      //if (_userConfig.ShowTableHeader)
+      //      //{
+      //      //   //var rect = new RectangleF(
+      //      //   //    _table.Location.X,
+      //      //   //    _table.Location.Y,
+      //      //   //    _table.Size.Width - (_table.ScrollBarOffsetFromRight + 30),
+      //      //   //    _table.RowsHeight);
+
+      //      //   //TODO : remove this feature.
+      //      //   string addTextToMsg = "";
+      //      //   //string addTextToMsg =
+      //      //   //    _userConfig.DebugUI ?
+      //      //   //    $"-{DateTime.Now.ToString(_userConfig.Column1TimeStampFormat)} - {Interlocked.Read(ref _totalDraws)} - {drawType}" :
+      //      //   //    "";
+
+      //      //   //var (enbled, timeDiff) = _table.GetSelectedLineDiff();
+      //      //   //if (enbled)
+      //      //   //{
+      //      //   //   addTextToMsg += $"- {timeDiff}";
+      //      //   //}
+
+      //      //   for (int ndx = 0; ndx < _table.TotalColumns; ndx++)
+      //      //   {
+      //      //      if (string.IsNullOrEmpty(_table[ndx].DisplayName) || !_table[ndx].Visible)
+      //      //         continue;
+      //      //      switch (_table[ndx].DisplayName)
+      //      //      {
+      //      //         default:
+      //      //            _newCanvas.gc.DrawString(
+      //      //                _table[ndx].DisplayName,
+      //      //                _userConfig.TableHeaderFont,
+      //      //                new SolidBrush(_userConfig.TableHeaderForeGroundColor),
+      //      //                new PointF(
+      //      //                    _table.Location.X + _table[ndx].StartLoc,
+      //      //                    _table.Location.Y + _table.OffsetStringData)
+      //      //                );
+      //      //            break;
+
+      //      //         case "Message":
+      //      //            _newCanvas.gc.DrawString(
+      //      //                $"{_table[ndx].DisplayName}{addTextToMsg}",
+      //      //                _userConfig.TableHeaderFont,
+      //      //                new SolidBrush(_userConfig.TableHeaderForeGroundColor),
+      //      //                new PointF(
+      //      //                    _table.Location.X + _table[ndx].StartLoc,
+      //      //                    _table.Location.Y + _table.OffsetStringData)
+      //      //                );
+      //      //            break;
+      //      //      }
+      //      //   }
+      //      //}
+
+      //      //var brushes = new SolidBrush[] {
+      //      //            new SolidBrush(_userConfig.MsgErrorFontColor),
+      //      //            new SolidBrush(_userConfig.MsgInfoFontColor),
+      //      //            new SolidBrush(_userConfig.MsgTraceFontColor),
+      //      //            new SolidBrush(_userConfig.MsgWarningFontColor)
+      //      //        };
+      //      //var brushes_blur = new SolidBrush[] {
+      //      //            new SolidBrush(_userConfig.MsgErrorFontColor),
+      //      //            new SolidBrush(_userConfig.MsgInfoFontColor),
+      //      //            new SolidBrush(_userConfig.MsgTraceFontColor),
+      //      //            new SolidBrush(_userConfig.MsgWarningFontColor)
+      //      //        };
+
+      //      //for (int ndx = 0; ndx < brushes.Length; ndx++)
+      //      //{
+      //      //   var color = brushes_blur[ndx].Color;
+      //      //   brushes_blur[ndx].Color = Color.FromArgb(color.A / 2, color.R, color.G, color.B);
+      //      //}
+
+      //      //if (_view != null)
+      //      //{
+      //      //   var currentLine = _table.CurrentDataLine;
+      //      //   string prevTime = "";
+
+      //      //   //Draw the gobal line indicator first.
+      //      //   if (_table.ShowGlobalLine)
+      //      //   {
+      //      //      var line = Math.Abs(_table.CurrentGlobalLine);
+      //      //      if (line >= _table.CurrentDataLine && line <= (_table.CurrentDataLine + _table.RowsPerPage))
+      //      //      {
+      //      //         if (_table.CurrentGlobalLine < 0)
+      //      //         {
+      //      //            float rowYPos = (_table.RowsHeight * (((line - 1) - (_table.CurrentDataLine)) + 1)) + (_table.Location.Y + _table.OffsetStringData);
+      //      //            _newCanvas.gc.DrawLine(
+      //      //                new Pen(_userConfig.GlobalLineSelected, _userConfig.GlobalLineSelectedWidth),
+      //      //                0,
+      //      //                rowYPos,
+      //      //                _table.Size.Width,
+      //      //                rowYPos);
+      //      //         }
+      //      //         else
+      //      //         {
+      //      //            float rowYPos = (_table.RowsHeight * ((line - _table.CurrentDataLine) + 1)) + (_table.Location.Y + _table.OffsetStringData);
+      //      //            _newCanvas.gc.FillRectangle(
+      //      //                new SolidBrush(_userConfig.GlobalLineSelected),
+      //      //                0,
+      //      //                rowYPos,
+      //      //                _table.Size.Width,
+      //      //                _table.RowsHeight);
+      //      //         }
+
+
+      //      //      }
+      //      //   }
+      //      //   var brushLineBkg = new SolidBrush(_userConfig.TableLineSelectedBkg);
+      //      //   var brushMsgBkg = new SolidBrush(_userConfig.TableSearchLinesBkg);
+      //      //   for (int ndx = 0; ndx < _table.RowsPerPage; ndx++)
+      //      //   {
+      //      //      if (currentLine < _table.TotalDataLines)
+      //      //      {
+      //      //         var (isRowSelected, rowData) = _table.GetLine(currentLine);
+      //      //         currentLine++;
+
+      //      //         //float rowYPos = (_table.RowsHeight * (ndx + 1)) + (_table.Location.Y + _table.OffsetStringData);
+      //      //         float rowYPos = _table.GetYPos(ndx);
+
+      //      //         //TODO : future
+      //      //         //if (currentLine > 10 && currentLine < 20)
+      //      //         //{
+      //      //         //   DrawMsgBackground(rowYPos, brushMsgBkg);
+      //      //         //}
+
+      //      //         if (isRowSelected && !_table.ShowGlobalLine)
+      //      //         {
+      //      //            DrawLineBackground(rowYPos, brushLineBkg);
+      //      //         }
+
+      //      //         foreach (var col in _table.Columns)
+      //      //         {
+      //      //            if (!col.Visible) continue;
+      //      //            switch (col.Name)
+      //      //            {
+      //      //               case "LineNo":
+      //      //                  _newCanvas.gc.DrawString(
+      //      //                      $"{currentLine}",
+      //      //                      _userConfig.TableBodyFont,
+      //      //                      new SolidBrush(_userConfig.MsgTraceFontColor),
+      //      //                      _table.Location.X + col.StartLoc,
+      //      //                      rowYPos);
+      //      //                  break;
+
+      //      //               case "TimeStamp":
+
+      //      //                  string newTime = _table.ShowTimeSelected == TableSkeleton.ShowTime.Default ?
+      //      //                     $"{rowData.TimeStamp.ToString(_userConfig.Column1TimeStampFormat)}" :
+      //      //                     $"{(rowData.TimeStamp - _table.ShowTime_Default_StartTime)}"
+      //      //                     ;
+      //      //                  if (prevTime != newTime)
+      //      //                  {
+      //      //                     prevTime = newTime;
+      //      //                     _newCanvas.gc.DrawString(
+      //      //                         newTime,
+      //      //                         _userConfig.TableBodyFont,
+      //      //                        new SolidBrush(_userConfig.MsgTraceFontColor),
+      //      //                         _table.Location.X + col.StartLoc,
+      //      //                         rowYPos
+      //      //                         );
+      //      //                  }
+      //      //                  break;
+      //      //               case "ThId":
+      //      //                  _newCanvas.gc.DrawString(
+      //      //                      $"{rowData.ThreadNo}",
+      //      //                      _userConfig.TableBodyFont,
+      //      //                      new SolidBrush(_userConfig.MsgTraceFontColor),
+      //      //                      _table.Location.X + col.StartLoc,
+      //      //                      rowYPos);
+      //      //                  break;
+      //      //               case "Category":
+      //      //                  _newCanvas.gc.DrawString(
+      //      //                       $"{(rowData.Category.Length <= 10 ? rowData.Category : rowData.Category.Substring(0, 10) + "~")}",
+      //      //                      _userConfig.TableBodyFont,
+      //      //                      new SolidBrush(_userConfig.MsgTraceFontColor),
+      //      //                      _table.Location.X + col.StartLoc,
+      //      //                      rowYPos);
+      //      //                  break;
+      //      //               case "ProcId":
+      //      //                  _newCanvas.gc.DrawString(
+      //      //                      $"{rowData.ProcessId}",
+      //      //                      _userConfig.TableBodyFont,
+      //      //                      new SolidBrush(_userConfig.MsgTraceFontColor),
+      //      //                      _table.Location.X + col.StartLoc,
+      //      //                      rowYPos);
+      //      //                  break;
+
+      //      //               case "ImageNo":
+      //      //                  if (rowData.StackTraceId != LogLine.INVALID)
+      //      //                  {
+      //      //                     _newCanvas.gc.DrawImage(Properties.Resources.stack,
+      //      //                        _table.Location.X + col.StartLoc,
+      //      //                        rowYPos + 2);
+      //      //                  }
+      //      //                  break;
+
+      //      //               case "Message":
+      //      //                  var lineData = rowData.Msg.Replace("\n", "").Replace("\r", "").TrimStart();
+      //      //                  if (_userConfig.FeatureShowCategoryWithMsg)
+      //      //                  {
+      //      //                     lineData = $"[{rowData.Category}], {lineData}";
+      //      //                  }
+      //      //                  _newCanvas.gc.DrawString(
+
+      //      //                      _userConfig.DebugUI ?
+      //      //                      $"{rowData.GlobalLine}| {rowData.FileNumber}| {rowData.LineNumber}| {lineData}" :
+      //      //                      $"{lineData}",
+
+      //      //                      _userConfig.TableBodyFont,
+      //      //                      brushes[(int)rowData.LogType],
+      //      //                      _table.Location.X + col.StartLoc,
+      //      //                      rowYPos);
+      //      //                  break;
+      //      //            }
+      //      //         }
+      //      //      }
+      //      //      else
+      //      //      {
+      //      //         break;
+      //      //      }
+      //      //   }
+      //      //}
+      //      if (_table.TotalDataLines != 0)
+      //      {
+      //         DoWork_DrawScrollBar(_table);
+      //      }
+
+      //      masterPanel.Invoke(new Action(() =>
+      //      {
+      //         lblPage.Text = _table.TotalPages == 0 ? "" : $"{_table.CurrentPage + 1} of {_table.TotalPages}";
+      //         if (lblPage.Text.Length > 9)
+      //         {
+      //            lblPage.Text = $"{_table.CurrentPage + 1} of {_table.TotalPages}";
+      //         }
+      //         masterPanel.CreateGraphics().DrawImage(_newCanvas.bmp, 0, 0);
+      //         if (_lineInfoDlg.Visible)
+      //         {
+      //            SetInfoDialogData();
+      //         }
+
+      //         //TODO : what to update ?
+      //         //UpdateTotal(ViewCommon.Engine.GetStartInfo());
+      //      }));
+
+      //   }
+      //   catch (InvalidOperationException ex1)
+      //   {
+      //      _logger.Error(ex1.ToString());
+      //      Thread.Sleep(200);
+      //      QueueDrawRequest($"Invalid operation");
+      //   }
+      //   catch (Exception ex)
+      //   {
+      //      Thread.Sleep(200);
+      //      _logger.Error(ex.ToString());
+      //      QueueDrawRequest($"Exception.");
+      //   }
+      //}
+      private void DrawLineBackground(float yPos, SolidBrush brush)
+      {
+         _newCanvas.gc.FillRectangle(brush, 2, yPos, _table.Size.Width, _table.RowsHeight);
       }
       private void filterByThreadId_Click(object sender, EventArgs e)
       {
@@ -1296,7 +1509,7 @@ namespace logAxe
          {
             btnFllter_Click(null, null);
             //Suppresses the ding sound when we press enter.
-            e.Handled = true; 
+            e.Handled = true;
          }
       }
       private void lblCloseFilterBox_Click(object sender, EventArgs e)
@@ -1311,53 +1524,110 @@ namespace logAxe
       }
       private void btnClear_Click(object sender, EventArgs e)
       {
-         if (ViewCommon.Engine.TotalLogLines != 0 && (MessageBox.Show(this, "There are logs in viewer. Please confirm to clear ?", "Alert", MessageBoxButtons.OKCancel) == DialogResult.Cancel))
+         //TODO: simple reset all filters.
+         if (
+            _table.ViewFrame== null ||
+            _table.ViewFrame.TotalLogFiles == 0 
+            )
          {
             return;
          }
-         ViewCommon.Engine.Clear();
+
+         if (MessageBox.Show(this, "There are logs in viewer. Please confirm to clear ?", "Alert", MessageBoxButtons.OKCancel) == DialogResult.OK)
+         { 
+            ViewCommon.Channel.SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_SET_CLEAR, name: UniqueId, value: null));
+         }
+
       }
       private void lblClearFilter_Click(object sender, EventArgs e)
       {
          //_queueWork.Add(new Work(Work.WType.SetNewView, ViewCommon.Engine.GetMasterFrame()));
-         HelperSetFilter(new TermFilter());
+         ResetFilter();
       }
       private void btnSavedFilterAdd_Click(object sender, EventArgs e)
-      {
+      {         
          ViewCommon.AddFilter(txtSavedFilter.Text, CurrentFilter);
       }
       private void btnSavedFilterApply_Click(object sender, EventArgs e)
       {
-         CurrentFilter = ViewCommon.GetFilter(txtSavedFilter.Text);
-         HelperSetFilter(CurrentFilter, true);
+         ViewCommon.Channel.SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_GET_INFO_FILTER, name: UniqueId, value: new TermFilter() { Name= txtSavedFilter.Text }));
+         //TODO : fix this.
+         //CurrentFilter = ViewCommon.GetFilter(txtSavedFilter.Text);
+         //HelperSetFilter(CurrentFilter, true);
       }
       private void btnSavedFilterDelete_Click(object sender, EventArgs e)
       {
-         ViewCommon.RemoveFilter(txtSavedFilter.Text);
+         //TODO : fix this.
+         //ViewCommon.RemoveFilter(txtSavedFilter.Text);
       }
       private void lstSavedFilter_SelectedIndexChanged(object sender, EventArgs e)
       {
-         
+
          btnSavedFilterDelete.Enabled = false;
          btnSavedFilterApply.Enabled = false;
 
-         if (lstSavedFilter.SelectedIndex != -1) {
-            txtSavedFilter.Text = lstSavedFilter.Items[lstSavedFilter.SelectedIndex].ToString();            
+         if (lstSavedFilter.SelectedIndex != -1)
+         {
+            txtSavedFilter.Text = lstSavedFilter.Items[lstSavedFilter.SelectedIndex].ToString();
             btnSavedFilterDelete.Enabled = true;
             btnSavedFilterApply.Enabled = true;
          }
       }
+
+      private void pnlFilterSearch_Move(object sender, EventArgs e)
+      {
+         pnlFilterTag.Location = new Point(pnlFilterSearch.Location.X, pnlFilterSearch.Location.Y + pnlFilterSearch.Size.Height + 2);
+      }
+
       private void LoadFilter()
       {
          lstSavedFilter.ClearSelected();
          lstSavedFilter.Items.Clear();
-         var items = ViewCommon.GetAllNames();
+         var items = ViewCommon.GetAllFilterNames();
          lstSavedFilter.Items.AddRange(items);
          txtSavedFilter.Text = "";
 
          btnSavedFilterAdd.Enabled = true;
          btnSavedFilterDelete.Enabled = false;
          btnSavedFilterApply.Enabled = false;
+      }
+
+   }
+
+   public class CustomMoveCntrl
+   {
+      private Point lblFilterBoxStart;
+      private Control _cntrl1;
+      private Control _cntrl2;
+      public CustomMoveCntrl(Control cntrl1, Control cntrl2 = null)
+      {
+         _cntrl1 = cntrl1;
+         _cntrl2 = cntrl2 ?? cntrl1;
+         _cntrl1.MouseDown += new MouseEventHandler(lblFiterBoxTxt_MouseDown);
+      }
+      public void Release()
+      {
+         _cntrl1.MouseDown -= new MouseEventHandler(lblFiterBoxTxt_MouseDown);
+      }
+      private void lblFiterBoxTxt_MouseDown(object sender, MouseEventArgs e)
+      {
+         if (e.Button == MouseButtons.Left)
+         {
+            lblFilterBoxStart = e.Location;
+            _cntrl1.MouseUp += new MouseEventHandler(lblFilterBoxtTxt_MouseUp);
+            _cntrl1.MouseMove += new MouseEventHandler(lblFilterBoxtTxt_MouseDown);
+            Cursor.Current = System.Windows.Forms.Cursors.SizeAll;
+         }
+      }
+      private void lblFilterBoxtTxt_MouseUp(object sender, MouseEventArgs e)
+      {
+         _cntrl1.MouseMove -= new MouseEventHandler(lblFilterBoxtTxt_MouseDown);
+         _cntrl1.MouseUp -= new MouseEventHandler(lblFilterBoxtTxt_MouseUp);
+         Cursor.Current = System.Windows.Forms.Cursors.Default;
+      }
+      private void lblFilterBoxtTxt_MouseDown(object sender, MouseEventArgs e)
+      {
+         _cntrl2.Location = new Point(_cntrl2.Location.X - (lblFilterBoxStart.X - e.X), _cntrl2.Location.Y - (lblFilterBoxStart.Y - e.Y));
       }
    }
 }

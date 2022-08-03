@@ -3,47 +3,104 @@
 //--------------------------------------------------------------------------------------------------------------------
 //=====================================================================================================================
 
-using logAxeEngine.Common;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+
 using logAxeEngine.Interfaces;
 
 namespace logAxeEngine.Storage
 {
-   public sealed class StorageStringDB : IStorageString
-   {
-      public int _currentCount;
-      public int Count => _currentCount;
+   /// <summary>
+   /// Stores the unique string. 
+   ///   It creates a dictionary of StringRecord and integer. 
+   ///   StringRecord contains Position in byte array and hash of the string. For details look into StringRecord struct.
+   /// Optmization, when called will clear the dictionary in the current class.
+   /// </summary>
+   public class StorageStringDB : IStorageString
+   {      
+      public readonly int SearchStrategyThreshold = 30000 * 100;
+      public int Count => _stringStore.Count;
       private StorageStringXEfficient _stringStore;
-      private Dictionary<StringGhost, int> _stringMap;
+      private Dictionary<StringRecord, int> _stringMap;
       private bool IsOptmized = false;
-      private NamedLogger _logger = new NamedLogger("strDb");
+      private int _searchStategy = 0;
 
-      public StorageStringDB(int pagePerbook = 10, int dataPerPage = 1024 * 1024 * 50, int possibleStringSize = 1024 * 1024 * 1)
-      {
-         _currentCount = 0;
+      public StorageStringDB(
+         int pagePerbook = 10, 
+         int dataPerPage = 1024 * 1024 * 50, 
+         int possibleStringSize = 1024 * 1024 * 1)
+      {         
          _stringStore = new StorageStringXEfficient(pagePerbook, dataPerPage, possibleStringSize);
-         _stringMap = new Dictionary<StringGhost, int>(_stringStore);
-         _stringMap.Clear();
+
+         //This is a special constructor of dicusiton where StorageStringXEfficient is used as comparer.
+         _stringMap = new Dictionary<StringRecord, int>(_stringStore);         
       }
 
       public void Clear()
-      {
-         _currentCount = 0;
+      {  
          _stringStore.Clear();
          _stringMap.Clear();
       }
+      public Dictionary<int, int> MergeStorage(IStorageString storage)
+      {
+         var maps = new Dictionary<int, int>();
 
-      int _searchStategy = 0;
+         if (typeof(StorageStringList) == storage.GetType())
+         {
+            for (int ndx = 0; ndx < storage.Count; ndx++)
+            {
+               var data = storage.RetriveString(ndx);
+               int id = StoreString(data);
+               maps.Add(ndx, id);
+            }
+            return maps;
+         }
+         else
+         {
+            throw new NotImplementedException();
+         }
+      }
+      public void OptimizeData()
+      {
+         _stringMap.Clear();
+         _stringMap = null;
+         //This is a special constructor of dicusiton where StorageStringXEfficient is used as comparer.
+         _stringMap = new Dictionary<StringRecord, int>(_stringStore);
+         IsOptmized = true;
+      }
+      public string RetriveString(int uniqueId)
+      {
+         return _stringStore.RetriveString(uniqueId);
+      }
+      public int StoreString(string data)
+      {
+         if (IsOptmized)
+         {
+            for (int ndx = 0; ndx < _stringStore.Count; ndx++)
+            {
+               var st = new StringRecord { InternalStringID = ndx, StringHash = _stringStore.RetriveString(ndx).GetHashCode() };
+               _stringMap.Add(st, ndx);
+            }
+            IsOptmized = false;
+         }
 
+         var stData = new StringRecord { InternalStringID = -1, StringData = data, StringHash = data.GetHashCode() };
+         if (!_stringMap.ContainsKey(stData))
+         {
+            var uniqueId = _stringStore.StoreString(data);
+            stData.InternalStringID = uniqueId;
+            stData.StringData = null;
+            _stringMap.Add(stData, uniqueId);            
+            return uniqueId;
+         }
+         return _stringMap[stData];
+      }
       public int[] Filter(string[] includeMsgs, string[] excludeMsgs, bool caseSensitive = false, bool exactWord = false)
       {
          //TODO : search for all scenario where excluded msg is already in include message.
          var allMsg = new bool[Count];
          var ordinalType = caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
-
-         
 
          // Scenario when the we want to filter out certain message.
          // So we need to make all the messages are included.
@@ -53,13 +110,11 @@ namespace logAxeEngine.Storage
             {
                allMsg[ndx] = true;
             }
-
          }
 
          if (!exactWord)
          {
-            _searchStategy = Count > (300000 * 100) ? 1 : 0;
-            //_searchStategy = 1;
+            _searchStategy = Count >= SearchStrategyThreshold ? 1 : 0;
 
             if (0 == _searchStategy)
             {
@@ -87,12 +142,9 @@ namespace logAxeEngine.Storage
                {
                   Parallel.For(0, Count, ndx =>
                   {
-                     //for (var ndx = 0; ndx < Count; ndx++)
-                     //{
                      var msg = RetriveString(ndx);
                      if (!allMsg[ndx] && msg.IndexOf(term, ordinalType) == -1) return;
                      allMsg[ndx] = true;
-                  //}
                   });
                }
 
@@ -141,64 +193,5 @@ namespace logAxeEngine.Storage
          return result.ToArray();
       }
 
-      public Dictionary<int, int> MergeStorage(IStorageString storage)
-      {
-         var maps = new Dictionary<int, int>();
-
-         if (typeof(StorageStringList) == storage.GetType())
-         {
-            for (int ndx = 0; ndx < storage.Count; ndx++)
-            {
-               var data = storage.RetriveString(ndx);
-               int id = StoreString(data);
-               maps.Add(ndx, id);
-            }
-            return maps;
-         }
-         else
-         {
-            throw new NotImplementedException();
-         }
-      }
-
-      public void OptimizeData()
-      {
-         _stringMap.Clear();
-         _stringMap = null;
-         _stringMap = new Dictionary<StringGhost, int>(_stringStore);
-         IsOptmized = true;
-      }
-
-      public string RetriveString(int uniqueId)
-      {
-         return _stringStore.RetriveString(uniqueId);
-      }
-
-      public int StoreString(string data)
-      {
-         if (IsOptmized)
-         {
-            for (int ndx = 1; ndx < _stringMap.Count; ndx++)
-            {
-               var st = new StringGhost { Position = ndx, Hash = _stringStore.RetriveString(ndx).GetHashCode() };
-               _stringMap.Add(st, ndx);
-               _currentCount++;
-            }
-            IsOptmized = false;
-         }
-
-         var stData = new StringGhost { Position = -1, Data = data, Hash = data.GetHashCode() };
-         if (!_stringMap.ContainsKey(stData))
-         {
-            var uniqueId = _stringStore.StoreString(data);
-            stData.Position = uniqueId;
-            stData.Data = null;
-            _stringMap.Add(stData, uniqueId);
-            _currentCount++;
-            return uniqueId;
-         }
-
-         return _stringMap[stData];
-      }
    }
 }

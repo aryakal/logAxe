@@ -12,6 +12,7 @@ using System.Linq;
 using logAxeCommon;
 using logAxeEngine.Common;
 using logAxeEngine.Interfaces;
+using libALogger;
 
 namespace logAxeEngine.Storage
 {
@@ -35,7 +36,7 @@ namespace logAxeEngine.Storage
          public int InternalGlobalLine;
       }
 
-      private NamedLogger _logger = new NamedLogger("metaDb");
+      private ILibALogger _logger;
       private GenericHugeStore<InterLogLine> _store;      
       private bool _isOptmized;
       private int[] _globalLogLines;
@@ -48,11 +49,12 @@ namespace logAxeEngine.Storage
       private LogFrame _mainFrame;
       
       public int TotalLogLines => _store.Count;
-      public StorageMetaDatabase(
+      public StorageMetaDatabase(         
           IStorageString stringStore,
           IStorageString tagStore,
           int pageSize = 100)
       {
+         _logger = Logging.GetLogger("metaDb");
          _store = new GenericHugeStore<InterLogLine>(10, 30000);
          _dbString = stringStore;
          _dbTag = tagStore;

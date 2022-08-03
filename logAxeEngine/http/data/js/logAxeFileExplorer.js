@@ -15,11 +15,13 @@ class LogAxeFileExplorer {
         var obj = this;
         this._backend = new LogAxeBackend(appRoot);
 
-        this._backend.register_event("get_fav_items",
-            function(result) { obj.render_fav(result); });
+        this._backend.register_event("get_fav_items", function(result) {
+            obj.render_fav(result);
+        });
 
-        this._backend.register_event("get_dir_items",
-            function(result) { obj.render_dir(result); });
+        this._backend.register_event("get_dir_items", function(result) {
+            obj.render_dir(result);
+        });
     }
 
     render_dir(result) {
@@ -98,7 +100,6 @@ class LogAxeFileExplorer {
 
                 }
 
-
                 //div.addEventListener('click', obj.set_on_click.bind(obj, false, false, ndx), false);
             }
         }
@@ -111,7 +112,6 @@ class LogAxeFileExplorer {
     }
 
     set_hide() {
-
     }
 
     removeAllChildNodes(parent) {

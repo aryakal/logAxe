@@ -1,5 +1,10 @@
+//=====================================================================================================================
+// Source : https://github.com/aryakal/
+//--------------------------------------------------------------------------------------------------------------------
+//=====================================================================================================================
+
 using System.Reflection;
 
 [assembly: AssemblyCompany("logAxe")]
-[assembly: AssemblyCopyright("Copyright © 2022 aryakal")]
-[assembly: AssemblyVersion("0.2.7")]
+[assembly: AssemblyCopyright("Copyright (c) 2022 aryakal")]
+[assembly: AssemblyVersion("0.4.1")]

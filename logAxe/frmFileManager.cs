@@ -7,8 +7,10 @@ using System;
 using System.Linq;
 using System.Windows.Forms;
 using System.Collections.Generic;
-using logAxeEngine.Common;
-using logAxeEngine.Interfaces;
+//using logAxeEngine.Common;
+//using logAxeEngine.Interfaces;
+
+using logAxeCommon;
 
 namespace logAxe
 {
@@ -28,22 +30,23 @@ namespace logAxe
       {
          lstBoxFileNames.Items.Clear();
 
-         if (ViewCommon.Engine != null)
-         {
-            lstBoxFileNames.DisplayMember = "DisplayName";
-            lstBoxFileNames.ValueMember = "Key";
-            lstBoxFileNames.Items.AddRange(ViewCommon.Engine.GetAllFileNames());
-            if (InitialSelectedFileNo.Length != 0)
-            {
-               for (int ndx = 0; ndx < lstBoxFileNames.Items.Count; ndx++)
-               {
-                  if (InitialSelectedFileNo.Contains(((LogFileInfo)lstBoxFileNames.Items[ndx]).FileNo))
-                  {
-                     lstBoxFileNames.SetSelected(ndx, true);
-                  }
-               }
-            }
-         }
+         //TODO : Ask for the information and show it once avaliable.
+         //if (ViewCommon.Engine != null)
+         //{
+         //   lstBoxFileNames.DisplayMember = "DisplayName";
+         //   lstBoxFileNames.ValueMember = "Key";
+         //   lstBoxFileNames.Items.AddRange(ViewCommon.Engine.GetAllLogFileInfo());
+         //   if (InitialSelectedFileNo.Length != 0)
+         //   {
+         //      for (int ndx = 0; ndx < lstBoxFileNames.Items.Count; ndx++)
+         //      {
+         //         if (InitialSelectedFileNo.Contains(((LogFileInfo)lstBoxFileNames.Items[ndx]).FileNo))
+         //         {
+         //            lstBoxFileNames.SetSelected(ndx, true);
+         //         }
+         //      }
+         //   }
+         //}
       }
 
       private void btnExport_Click(object sender, EventArgs e)
@@ -58,15 +61,17 @@ namespace logAxe
             }
          }
 
-         string preFixDate = ViewCommon.UserConfig.PrefixDate ? $"{DateTime.Now:yyyyMMddHHmmss}" : "";
-         saveFileBox.FileName = $"{ViewCommon.UserConfig.LogExportPrefix}{preFixDate}.zip";
+         //TODO prefix date
+         //string preFixDate = ViewCommon.TransitionToCommonFunctionality.UserConfig.PrefixDate ? $"{DateTime.Now:yyyyMMddHHmmss}" : "";
+         //saveFileBox.FileName = $"{ViewCommon.TransitionToCommonFunctionality.UserConfig.LogExportPrefix}{preFixDate}.zip";
 
-         if (saveFileBox.ShowDialog() == DialogResult.OK)
-         {
-            progressBar.Visible = true;
-            progressBar.Maximum = lst.Count;
-            ViewCommon.Engine.ExportFiles(lst.ToArray(), saveFileBox.FileName);
-         }
+         //if (saveFileBox.ShowDialog() == DialogResult.OK)
+         //{
+         //   progressBar.Visible = true;
+         //   progressBar.Maximum = lst.Count;
+         //   //TODO : now we need to send the index of the files only !
+         //   //ViewCommon.Engine.ExportFiles(lst.ToArray(), saveFileBox.FileName);
+         //}
 
       }
 
@@ -82,10 +87,11 @@ namespace logAxe
 
       private void btnImportFile_Click(object sender, EventArgs e)
       {
-         if (openFileDialog.ShowDialog() == DialogResult.OK)
-         {
-            ViewCommon.Engine.AddFiles(openFileDialog.FileNames.ToArray(), processAsync: true);
-         }
+         // TODO : easy peasy
+         //if (openFileDialog.ShowDialog() == DialogResult.OK)
+         //{
+         //   ViewCommon.Engine.AddFiles(openFileDialog.FileNames.ToArray(), processAsync: true);
+         //}
       }
    }
 }

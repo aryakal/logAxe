@@ -25,11 +25,16 @@ class LogLineViewer {
 
         this._current_data = null;
 
+        this._current_selected_line_no = -1;
+
         window.addEventListener("resize", this.set_canvas_resize.bind(this));
         this._canvas.addEventListener('mousedown', this.set_canvas_mousedown.bind(this), false);
         this._canvas.addEventListener('mousemove', this.set_canvas_mousemove.bind(this), false);
         this._canvas.addEventListener('mouseup', this.set_canvas_mouseup.bind(this), false);
         this._canvas.addEventListener('mouseout', this.set_canvas_mouseout.bind(this), false);
+        this._canvas.addEventListener('click', this.set_canvas_click.bind(this), false);
+
+        this._canvas.addEventListener('mousewheel', this.set_canvas_mousewheel.bind(this), false);
 
         this._channel.OnNewLinesInfo = this.ws_receive_data.bind(this);
 
@@ -47,13 +52,9 @@ class LogLineViewer {
     }
 
     get_pixel_ratio() {
-        var ctx = document.getElementById(this._canvasName).getContext("2d"),
-            dpr = window.devicePixelRatio || 1,
-            bsr = ctx.webkitBackingStorePixelRatio ||
-            ctx.mozBackingStorePixelRatio ||
-            ctx.msBackingStorePixelRatio ||
-            ctx.oBackingStorePixelRatio ||
-            ctx.backingStorePixelRatio || 1;
+        var ctx = document.getElementById(this._canvasName).getContext("2d")
+          , dpr = window.devicePixelRatio || 1
+          , bsr = ctx.webkitBackingStorePixelRatio || ctx.mozBackingStorePixelRatio || ctx.msBackingStorePixelRatio || ctx.oBackingStorePixelRatio || ctx.backingStorePixelRatio || 1;
         return dpr / bsr;
     }
 
@@ -68,17 +69,11 @@ class LogLineViewer {
         this._ctx = this._canvas.getContext("2d");
         this._ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
 
-
         // this._prg_bar_position = new StoreRect(new StorePoint(window.innerWidth - this._prg_right, radius),
         //     window.innerWidth - this._prg_right,
         //     window.innerHeight - this._prg_bar_height);
         var radius = Math.floor(this._prg_bar_height / 2);
-        this._prg_bar_position = new PrgBar(
-            window.innerWidth - this._prg_right,
-            radius,
-            window.innerHeight - (radius * 2),
-            radius,
-            "red");
+        this._prg_bar_position = new PrgBar(window.innerWidth - this._prg_right,radius,window.innerHeight - (radius * 2),radius,"red");
         this._view_RowHeight = Math.ceil((this.fontSize + this._view_PixelBetweenLines));
         this._viewTotalLines = Math.floor(window.innerHeight / this._view_RowHeight);
         this._ctx.font = this.get_font();
@@ -97,7 +92,8 @@ class LogLineViewer {
         this._prg_pages_per_pixel = this._channel.appInfo.totalPages / this._prg_bar_position.rect.height;
         this._channel.appInfo.currentPage = 0;
         this._prg_bar_enabled = this._channel.appInfo.totalPages != 0;
-        if (null != this.OnPageValueChange) this.OnPageValueChange();
+        if (null != this.OnPageValueChange)
+            this.OnPageValueChange();
     }
 
     set_mouse_position(mouse_pos) {
@@ -105,7 +101,8 @@ class LogLineViewer {
         this._channel.appInfo.currentPage = Math.ceil(this._prg_bar_position.get_height() * this._prg_pages_per_pixel);
         this._viewCurrentLineNo = this._channel.appInfo.currentPage * this._viewTotalLines;
         this.ws_send_data();
-        if (null != this.OnPageValueChange) this.OnPageValueChange();
+        if (null != this.OnPageValueChange)
+            this.OnPageValueChange();
     }
 
     set_canvas_mousedown(event) {
@@ -138,34 +135,58 @@ class LogLineViewer {
         }
     }
 
+    set_canvas_click(event) {
+        let lineNo = parseInt(event.y / this._view_RowHeight, 10);
+        if (this._current_selected_line_no != lineNo) {
+            this._current_selected_line_no = lineNo;
+            this.draw();
+        }
+    }
+
+    set_canvas_mousewheel(event) {
+        let prev = this._viewCurrentLineNo;
+        let lineNo = parseInt(event.deltaY / this._view_RowHeight, 10);
+        this._viewCurrentLineNo = this._viewCurrentLineNo + lineNo;
+        if (this._viewCurrentLineNo < 0) {
+            this._viewCurrentLineNo = 0;
+        } else if (this._viewCurrentLineNo > this._channel.info.TotalLogLines) {
+            this._viewCurrentLineNo = this._channel.info.TotalLogLines;
+        }
+        if (prev != this._viewCurrentLineNo)
+            this.ws_send_data();
+    }
+
     draw() {
         var ctx = this._ctx;
         var cfg = this._channel.appConfig;
         ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
         var rowY = 0;
         var previousDate = "";
+        if (this._current_selected_line_no != -1) {
+            this.set_line_background(this._current_selected_line_no, "#DCD7B6");
+        }
         if (this._current_data != null && this._current_data.LogLines.length != 0) {
             for (let ndx = 0; ndx < this._viewTotalLines; ndx++) {
                 if (ndx < this._current_data.LogLines.length) {
                     switch (this._current_data.LogLines[ndx].LogType) {
-                        case 0:
-                            // $('#m' + lineId).css('color', configGlobal.color.error);
-                            ctx.fillStyle = cfg.color.error;
-                            break;
-                        case 1:
-                            // $('#m' + lineId).css('color', configGlobal.color.info);
-                            ctx.fillStyle = cfg.color.info;
-                            break;
-                        case 2:
-                            // $('#m' + lineId).css('color', configGlobal.color.trace);
-                            ctx.fillStyle = cfg.color.trace;
-                            break;
-                        case 3:
-                            // $('#m' + lineId).css('color', configGlobal.color.warning);
-                            ctx.fillStyle = cfg.color.warning;
-                            break;
+                    case 0:
+                        // $('#m' + lineId).css('color', configGlobal.color.error);
+                        ctx.fillStyle = cfg.color.error;
+                        break;
+                    case 1:
+                        // $('#m' + lineId).css('color', configGlobal.color.info);
+                        ctx.fillStyle = cfg.color.info;
+                        break;
+                    case 2:
+                        // $('#m' + lineId).css('color', configGlobal.color.trace);
+                        ctx.fillStyle = cfg.color.trace;
+                        break;
+                    case 3:
+                        // $('#m' + lineId).css('color', configGlobal.color.warning);
+                        ctx.fillStyle = cfg.color.warning;
+                        break;
                     }
-                    //this.set_line_background(ndx, "grey");
+                    // this.set_line_background(0, "#F9F7F7");
                     rowY += this._view_RowHeight;
                     if (previousDate != this._current_data.LogLines[ndx].TimeStamp) {
                         ctx.fillText(this._current_data.LogLines[ndx].TimeStamp, 10, rowY);
@@ -206,20 +227,17 @@ class LogLineViewer {
         ctx.stroke();
     }
 
-    json_get_data() {
-        this._channel.cmd_get_lines(this._viewCurrentLineNo, this._viewTotalLines);
-    }
-
     ws_send_data() {
         this._channel.cmd_get_lines(this._viewCurrentLineNo, this._viewTotalLines);
     }
 
     ws_receive_data(message) {
-        this._current_data = message.value;
-        this.draw()
+        this._current_data = message.Value;
+        this.draw();
     }
 
-} //class ends
+}
+//class ends
 
 class StorePoint {
     constructor(x, y) {
@@ -245,15 +263,12 @@ class PrgBar {
         //console.log(x, y, height, radius, color)
         this.x = x;
         this.y = y;
-        this.rect = new StoreRect(x, y, radius * 2, height);
+        this.rect = new StoreRect(x,y,radius * 2,height);
         this.radius = radius;
         this.color = color;
     }
     get_hit(x, y) {
-        return (x >= (this.x - this.radius) &&
-            x <= (this.x + this.radius) &&
-            y >= (this.y - this.radius) &&
-            y <= (this.y + this.radius));
+        return (x >= (this.x - this.radius) && x <= (this.x + this.radius) && y >= (this.y - this.radius) && y <= (this.y + this.radius));
 
     }
     set_y(y) {
@@ -271,7 +286,6 @@ class PrgBar {
         if (ret > this.rect.height)
             return this.rect.height;
         return ret;
-
 
     }
 }

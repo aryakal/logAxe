@@ -25,10 +25,11 @@ namespace logAxe
 
       public void ChangeFont()
       {
-         if (null != ViewCommon.Engine)
-         {
-            textBox1.Font = ViewCommon.UserConfig.TableBodyFont;
-         }
+         //TODO : we can prefetc the config.
+         //if (null != ViewCommon.Engine)
+         //{
+         //   textBox1.Font = ViewCommon.UserConfig.TableBodyFont;
+         //}
       }
 
       public void Clear()

@@ -1,94 +1,101 @@
 <!doctype html>
 <HTML>
-
-<!--//=====================================================================================================================
+    <!--
+//=====================================================================================================================
 // Source : https://github.com/aryakal/
 //--------------------------------------------------------------------------------------------------------------------
-//=====================================================================================================================-->
-<HEAD>
-    <title>logAxe 1.0 view 1</title>
-    <link rel="icon" href="favicon.png" />
-    <script src="js/jquery.js" type="text/javascript"></script>
-    <script src="js/logAxe.js" type="text/javascript"></script>
-    <script src="js/logAxeEditor.js" type="text/javascript"></script>
-    <script src="js/logAxeFileExplorer.js" type="text/javascript"></script>
-    <script src="js/logAxeFileTransfer.js" type="text/javascript"></script>
-    <script src="js/httpLib.js" type="text/javascript"></script>
-    <link rel="stylesheet" href="fileExplorer.css">
-    <style>
-        html,
-        body {
-            height: 100%;
-            width: 100%;
-            overflow-y: hidden;
-            overflow-x: hidden;
-            -webkit-scrollbar: 'hidden';
-            background-color: whitesmoke;
-            font-size: 13px;
-            font-family: Calibri;
-            color: black;
-            padding: 0;
-            margin: 0;
-        }
+//=====================================================================================================================
+-->
+    <HEAD>
+        <title>logAxe 1.0 view 1</title>
+        <link rel="icon" href="favicon.png"/>
+        <script src="js/jquery.js" type="text/javascript"></script>
+        <script src="js/logAxe.js" type="text/javascript"></script>
+        <script src="js/logAxeEditor.js" type="text/javascript"></script>
+        <script src="js/logAxeFileExplorer.js" type="text/javascript"></script>
+        <script src="js/logAxeFileTransfer.js" type="text/javascript"></script>
+        <script src="js/httpLib.js" type="text/javascript"></script>
+        <link rel="stylesheet" href="fileExplorer.css">
+        <style>
+            html, body {
+                height: 100%;
+                width: 100%;
+                overflow-y: hidden;
+                overflow-x: hidden;
+                -webkit-scrollbar: 'hidden';
+                background-color: whitesmoke;
+                font-size: 13px;
+                font-family: Calibri;
+                color: black;
+                padding: 0;
+                margin: 0;
+            }
 
-        .container {
-            display: flex;
-        }
+            .container {
+                display: flex;
+            }
 
-        .menuBar {
-            position: absolute;
-            top: 0px;
-            right: 0px;
-            width: 110px;
-            height: 100%;
-            box-shadow: 0 4px 23px 5px rgba(0, 0, 0, 0.2), 0 2px 6px rgba(0, 0, 0, 0.15);
-            background-color: whitesmoke;
-        }
+            .menuBar {
+                position: absolute;
+                top: 0px;
+                right: 0px;
+                width: 110px;
+                height: 100%;
+                box-shadow: 0 4px 23px 5px rgba(0, 0, 0, 0.2), 0 2px 6px rgba(0, 0, 0, 0.15);
+                background-color: whitesmoke;
+                user-select: none;
+            }
 
-        .button {
-            background-color: white;
-            width: 100%;
-            border: none;
-            color: black;
-            text-decoration: none;
-            margin: 4px 2px;
-            cursor: pointer;
-            -webkit-transition-duration: 0.4s;
-            transition-duration: 0.4s;
-            font-size: 13px;
-            font-family: Calibri;
-            box-shadow: 0 4px 23px 5px rgba(0, 0, 0, 0.2), 0 2px 6px rgba(0, 0, 0, 0.15);
-        }
+            .button {
+                background-color: white;
+                width: 100%;
+                border: none;
+                color: black;
+                text-decoration: none;
+                margin: 4px 2px;
+                cursor: pointer;
+                -webkit-transition-duration: 0.4s;
+                transition-duration: 0.4s;
+                font-size: 13px;
+                font-family: Calibri;
+                box-shadow: 0 4px 23px 5px rgba(0, 0, 0, 0.2), 0 2px 6px rgba(0, 0, 0, 0.15);
+            }
 
-        .secondaryTable {
-            width: 100%;
-            height: 100%;
-            background-image: radial-gradient(#cc2525 2%, transparent 2%);
-            background-position: 0 0, 100px 100px;
-            background-size: 20px 20px;
-            vertical-align: top;
-            color: "red";
-        }
+            .button:hover {
+                background-color: black;
+                color: white;
+            }
 
-        .sideBarTable {
-            width: 100%;
-            text-align: right;
-        }
+            .secondaryTable {
+                width: 100%;
+                height: 100%;
+                background-image: radial-gradient(#cc2525 2%, transparent 2%);
+                background-position: 0 0, 100px 100px;
+                background-size: 20px 20px;
+                vertical-align: top;
+                color: "red";
+            }
 
-        .sideBarTitles {
-            text-align: left;
-            font-weight: bold;
-        }
+            .sideBarTable {
+                width: 100%;
+                text-align: right;
+            }
 
-        .flUI {
-            position: absolute;
-            top: 10px;
-            right: 125px;
-            width: 400px;
-            height: 200px;
-            box-shadow: 0 4px 23px 5px rgba(0, 0, 0, 0.2), 0 2px 6px rgba(0, 0, 0, 0.15);
-            background-color: whitesmoke;
-        }
+            .sideBarTitles {
+                text-align: left;
+                font-weight: bold;
+                user-select: none;
+            }
+
+            .flUI {
+                position: absolute;
+                top: 10px;
+                right: 125px;
+                width: 400px;
+                height: 200px;
+                box-shadow: 0 4px 23px 5px rgba(0, 0, 0, 0.2), 0 2px 6px rgba(0, 0, 0, 0.15);
+                background-color: whitesmoke;
+            }
 
             .flUI input {
                 border-top-style: hidden;
@@ -102,236 +109,208 @@
                 width: 29em;
             }
 
-                .flUI input:focus {
-                    outline: none;
-                }
+            .flUI input:focus {
+                outline: none;
+            }
 
-        .pageDisplay {
-            border-top-style: hidden;
-            border-right-style: hidden;
-            border-left-style: hidden;
-            border-bottom-style: hidden;
-            background-color: whitesmoke;
-            font-size: 13px;
-            font-family: Calibri;
-            text-align: left;
-            vertical-align: middle;
-        }
+            .pageDisplay {
+                border-top-style: hidden;
+                border-right-style: hidden;
+                border-left-style: hidden;
+                border-bottom-style: hidden;
+                background-color: whitesmoke;
+                font-size: 13px;
+                font-family: Calibri;
+                text-align: left;
+                vertical-align: middle;
+            }
 
             .pageDisplay:focus {
                 outline: none;
             }
-    </style>
-</HEAD>
-
-<body>
-    <canvas id="mainTable"></canvas>
-    <div class="menuBar">
-        <div>
-            <table id="logSummary" class="sideBarTable">
+        </style>
+    </HEAD>
+    <body>
+        <canvas id="mainTable"></canvas>
+        <div class="menuBar">
+            <div>
+                <table id="logSummary" class="sideBarTable">
+                    <tr>
+                        <td colspan="2" class="sideBarTitles">Log Summary</td>
+                    </tr>
+                    <tr>
+                        <td>Error</td>
+                        <td id="lblErrorCount" style="color:red">100</td>
+                    </tr>
+                    <tr>
+                        <td>Info</td>
+                        <td id="lblInfoCount" style="color:black">100</td>
+                    </tr>
+                    <tr>
+                        <td>Trace</td>
+                        <td id="lblTraceCount" style="color:green">200</td>
+                    </tr>
+                    <tr>
+                        <td>Warning</td>
+                        <td id="lblWarningCount" style="color:orange">20</td>
+                    </tr>
+                    <tr>
+                        <td>Total</td>
+                        <td id="lblTotalCount">3000000</td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td id="lblTotalCountHidden">3000000</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2">&nbsp;</td>
+                    </tr>
+                </table>
+                <table id="logSummary" class="sideBarTable">
+                    <tr>
+                        <td colspan="2" class="sideBarTitles">Operations</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="text-align:center;">
+                            <button id="btnShowFilter" class="button">Show Filter</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="text-align:center;">
+                            <button id="btnNewView" class="button">New view</button>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div style="position:absolute;bottom:0px;width: 100%;">
+                <table id="fileSummary" class="sideBarTable">
+                    <tr>
+                        <td colspan="2" class="sideBarTitles">Operations</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="text-align:center;">
+                            <button id="btnMngFiles" class="button">Manage files</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="text-align:center;">
+                            <button id="btnClear" class="button">Clear</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="text-align:center;">
+                            <button id="btnConfig" class="button">Config</button>
+                        </td>
+                    </tr>
+                </table>
+                <table class="sideBarTable">
+                    <tr>
+                        <td colspan="3" class="sideBarTitles">Page</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <input id="lblPageNo" size=2 class="pageDisplay"/>
+                        </td>
+                        <td>of</td>
+                        <td id="lblTotalPagesNo"></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        <div id="filterUI" class="flUI">
+            <table style="width:100%;height:100%">
                 <tr>
-                    <td colspan="2" class="sideBarTitles">Log Summary</td>
+                    <td colspan="2" class="sideBarTitles">Filters</td>
                 </tr>
                 <tr>
-                    <td>Error</td>
-                    <td id="lblErrorCount" style="color:red">100</td>
+                    <td colspan="2">
+                        + <input id="txtMsgI" value=""/>
+                    </td>
                 </tr>
                 <tr>
-                    <td>Info</td>
-                    <td id="lblInfoCount" style="color:black">100</td>
+                    <td colspan="2">
+                        -&nbsp<input input id="txtMsgE"/>
+                    </td>
                 </tr>
                 <tr>
-                    <td>Trace</td>
-                    <td id="lblTraceCount" style="color:green">200</td>
+                    <td colspan="2" class="sideBarTitles">Tag filters</td>
                 </tr>
                 <tr>
-                    <td>Warning</td>
-                    <td id="lblWarningCount" style="color:orange">20</td>
+                    <td colspan="2">
+                        +<input input id="txtTagI"/>
+                    </td>
                 </tr>
                 <tr>
-                    <td>Total</td>
-                    <td id="lblTotalCount">3000000</td>
+                    <td colspan="2">
+                        -&nbsp;<input input id="txtTagE"/>
+                    </td>
                 </tr>
                 <tr>
-                    <td></td>
-                    <td id="lblTotalCountHidden">3000000</td>
-                </tr>
-                <tr>
-                    <td colspan="2">&nbsp;</td>
+                    <td>
+                        <button id="btnFilterClear" class="button">Reset </button>
+                    </td>
+                    <td>
+                        <button id="btnFilter" class="button">Filter </button>
+                    </td>
                 </tr>
             </table>
-
-            <table id="logSummary" class="sideBarTable">
+        </div>
+        <div id="feDialog" class="feDialog">
+            <div class="feRow">
+                <input type="text" id="feurl" value="path" class="feUrl1"/>
+            </div>
+            <div class="feRow rowFull">
+                <div class="feFavCol" id="feFavPane"></div>
+                <div class="feColumn" id="feListPane"></div>
+                <div class="feColumn" id="feSelPane"></div>
+            </div>
+        </div>
+        <div id="userDialog" class="modal"></div>
+        <div id="userDialogClearFiles" class="userDialog">
+            <table style="width:100%;height:100%">
                 <tr>
-                    <td colspan="2" class="sideBarTitles">Operations</td>
+                    <td colspan="2" class="sideBarTitles">Confirm choice</td>
                 </tr>
                 <tr>
-                    <td colspan="2" style="text-align:center;">
-                        <button id="btnShowFilter" class="button">Show Filter</button>
+                    <td>
+                        <button id="btnCancelClearFiles" class="button">Cancel </button>
                     </td>
-                </tr>
-                <tr>
-                    <td colspan="2" style="text-align:center;">
-                        <button id="btnNewView" class="button">New view</button>
+                    <td>
+                        <button id="btnClearFiles" class="button">Clear Files </button>
                     </td>
                 </tr>
             </table>
-            <!-- <table id="fileSummary" class="sideBarTable">
-                <tr>
-                    <td colspan="2" class="sideBarTitles">App Info</td>
-                </tr>
-                <tr>
-                    <td>file size</td>
-                    <td id="lblFileSize">100gb</td>
-
-                </tr>
-                <tr>
-                    <td>app size</td>
-                    <td id="lblAppSize">2gb</td>
-                </tr>
-                <tr>
-                    <td>total files</td>
-                    <td id="lblTotalFiles">100</td>
-
-                </tr>
-                <tr>
-                    <td colspan="2">&nbsp;</td>
-                </tr>
-
-            </table> -->
         </div>
+        <script>
+            var configGlobal = {
+                "color": {
+                    "background": "#f5f5f5",
+                    "error": "red",
+                    "info": "black",
+                    "trace": "green",
+                    "warning": "#8E4C3E",
+                    "text": "black",
+                    "sidebar": "black"
+                },
+                "font": {
+                    "sidebar": 'normal 13px \"Segoe UI\"',
+                    "sidebar-heading": 'normal 13px \"Segoe UI\"'
+                },
+                appRoute: "/logAxe/"
+            }
 
-        <div style="position:absolute;bottom:0px;width: 100%;">
+            $(document).ready(function() {
+                var channel = new LogAxeChannel(configGlobal);
+                var logLineViewer = new LogLineViewer("mainTable",channel);
+                var viewManager = new ViewManager(logLineViewer,channel);
+                var fileTransfer = new LogAxeFileUploader(channel.appConfig.appRoute,"mainTable",channel);
 
+                channel.start();
 
-            <table id="fileSummary" class="sideBarTable">
-                <tr>
-                    <td colspan="2" class="sideBarTitles">Operations</td>
-                </tr>
-                <tr>
-                    <td colspan="2" style="text-align:center;">
-                        <button id="btnMngFiles" class="button">Manage files</button>
-                    </td>
-                </tr>
-                <tr>
-                    <td colspan="2" style="text-align:center;">
-                        <button id="btnClear" class="button">Clear</button>
-                    </td>
-                </tr>
-                <tr>
-                    <td colspan="2" style="text-align:center;">
-                        <button id="btnConfig" class="button">Config</button>
-                    </td>
-                </tr>
-            </table>
-            <table class="sideBarTable">
-                <tr>
-                    <td colspan="3" class="sideBarTitles">Page</td>
-                </tr>
-                <tr>
-                    <td><input id="lblPageNo" size=2 class="pageDisplay" /></td>
-                    <td>of</td>
-                    <td id="lblTotalPagesNo"></td>
-                </tr>
-            </table>
-        </div>
-    </div>
-
-
-    <div id="filterUI" class="flUI">
-        <table style="width:100%;height:100%">
-            <tr>
-                <td colspan="2" class="sideBarTitles">Filters</td>
-            </tr>
-            <tr>
-                <td colspan="2">
-                    + <input id="txtMsgI" value="bits" />
-                </td>
-            </tr>
-            <tr>
-
-                <td colspan="2">
-                    -&nbsp<input input id="txtMsgE" />
-                </td>
-            </tr>
-            <tr>
-                <td colspan="2" class="sideBarTitles">Tag filters</td>
-            </tr>
-            <tr>
-                <td colspan="2">
-                    +<input input id="txtTagI" />
-                </td>
-            </tr>
-            <tr>
-                <td colspan="2">
-                    -&nbsp;<input input id="txtTagE" />
-                </td>
-            </tr>
-            <tr>
-                <td><button id="btnFilterClear"> Clear </button></td>
-                <td>
-                    <button id="btnFilter"> Filter </button>
-                </td>
-            </tr>
-        </table>
-    </div>
-
-    <div id="feDialog" class="feDialog">
-        <div class="feRow">
-            <input type="text" id="feurl" value="path" class="feUrl1" />
-        </div>
-        <div class="feRow rowFull">
-            <div class="feFavCol" id="feFavPane"></div>
-            <div class="feColumn" id="feListPane"></div>
-            <div class="feColumn" id="feSelPane"></div>
-        </div>
-    </div>
-
-    <div id="userDialog" class="userDialog">
-        <b>Not Connected</b>
-    </div>
-
-
-    <script>
-        var configGlobal = {
-            "color": {
-                "background": "#f5f5f5",
-                "error": "red",
-                "info": "black",
-                "trace": "green",
-                "warning": "#8E4C3E",
-                "text": "black",
-                "sidebar": "black"
-            },
-            "font": {
-                "sidebar": 'normal 13px \"Segoe UI\"',
-                "sidebar-heading": 'normal 13px \"Segoe UI\"'
-            },
-            appRoute: "/logAxe/"
-        }
-
-        $(document).ready(function () {
-            var channel = new LogAxeChannel(configGlobal);
-            var logLineViewer = new LogLineViewer("mainTable", channel);
-            var viewManager = new ViewManager(logLineViewer, channel);
-            var fileTransfer = new LogAxeFileUploader(channel.appConfig.appRoute, "mainTable");
-
-            channel.start();
-
-            // libHttp.Connect();
-
-            //
-            //
-            //
-            // //var viewInfog = new LogAxeFileExplorer("fileExplorer", "feurl", "feFavPane", "feListPane", "feSelPane", "/logAxe/");
-            //
-            // //viewInfog.get_fav();
-            // viewManager.get_view_info();
-            // channel.cmd_startConnection(new HttpLib());
-            // channel.cmd_get_info();
-
-        });
-    </script>
-</body>
-
+            });
+            //window.onbeforeunload = function () {
+            //    return "Dude, are you sure you want to leave? Think of the kittens!";
+            //}
+        </script>
+    </body>
 </HTML>

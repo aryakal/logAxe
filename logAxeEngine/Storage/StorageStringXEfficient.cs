@@ -6,12 +6,13 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using logAxeEngine.Common;
 using logAxeEngine.Interfaces;
+using logAxeCommon;
+using libALogger;
 
 namespace logAxeEngine.Storage
 {
-   public sealed class StorageStringXEfficient : IStorageString, IEqualityComparer<StringGhost>
+   public class StorageStringXEfficient : IStorageString, IEqualityComparer<StringRecord>
    {
       private byte[][] _hugeStore;
       private List<long> _stringPositions;
@@ -20,15 +21,20 @@ namespace logAxeEngine.Storage
       private readonly int _possibleStringSize;
 
       private Int64 _currentWriteIndex = 0;
+      private int _currentId = 0;
+      public int Count => _currentId;
 
-      private int _currentId = -1;
-
-      public int Count => _currentId + 1;
-
-      private NamedLogger _logger = new NamedLogger("strStore");
-
+      private ILibALogger _logger;
+      /// <summary>
+      /// StorageStringXEfficient class stores the string more efficently.
+      /// It stores as a byte array in internal byte array which is arrange as a page.
+      /// </summary>
+      /// <param name="pagePerbook">No of pages, or byte array(s)</param>
+      /// <param name="dataPerPage">Byte array size</param>
+      /// <param name="possibleStringSize">Size of each string.</param>
       public StorageStringXEfficient(int pagePerbook = 10, int dataPerPage = 1024 * 1024 * 50, int possibleStringSize = 1024 * 1024 * 1)
       {
+         _logger = Logging.GetLogger("dbStr");
          _pagePerBook = pagePerbook;
          _dataPerPage = dataPerPage;
          _possibleStringSize = possibleStringSize;
@@ -53,21 +59,34 @@ namespace logAxeEngine.Storage
          _hugeStore[0] = new byte[_dataPerPage];
          _stringPositions = new List<long>(_possibleStringSize);
          _currentWriteIndex = 0;
-         _currentId = -1;
+         _currentId = 0;
          _stringPositions.Add(0);
       }
       public string RetriveString(int uniqueId)
       {
-         //--uniqueId;
          var (startPage, startLocation, endPage, endLocation) = GetLocationIndexs(
              _stringPositions[uniqueId], //The first index
              _stringPositions[uniqueId + 1] - _stringPositions[uniqueId]); // The length of the string.
 
          if (startPage != endPage)
          {
-            return
-                Encoding.UTF8.GetString(_hugeStore[startPage], startLocation, _hugeStore[startPage].Length - startLocation) +
-                Encoding.UTF8.GetString(_hugeStore[endPage], 0, endLocation);
+            var sb = new StringBuilder();            
+            for (var ndx = startPage; ndx <= endPage; ndx++)
+            {
+               if (ndx == startPage)
+               {
+                  sb.Append(Encoding.UTF8.GetString(_hugeStore[ndx], startLocation, _dataPerPage-startLocation));
+               }
+               else if (ndx == endPage)
+               {
+                  sb.Append(Encoding.UTF8.GetString(_hugeStore[ndx], 0, endLocation));
+               }
+               else
+               {  
+                  sb.Append(Encoding.UTF8.GetString(_hugeStore[ndx], 0, _dataPerPage));
+               }
+            }
+            return sb.ToString();            
          }
          else
          {
@@ -83,24 +102,39 @@ namespace logAxeEngine.Storage
 
          if (startPage != endPage)
          {
-            AddPage(endPage);
-            var length = _hugeStore[startPage].Length - startLocation;
-            Buffer.BlockCopy(byteData, 0, _hugeStore[startPage], startLocation, length);
-            Buffer.BlockCopy(byteData, length, _hugeStore[endPage], 0, byteData.Length - length);
+            var startPos = 0;
+            for (var ndx = startPage; ndx <= endPage; ndx++)
+            {
+               InitPage(ndx);               
+               if (ndx == startPage)
+               {
+                  Buffer.BlockCopy(byteData, startPos, _hugeStore[ndx], startLocation, _dataPerPage - startLocation);
+                  startPos = _dataPerPage - startLocation;
+               }
+               else if (ndx == endPage)
+               {
+                  Buffer.BlockCopy(byteData, startPos, _hugeStore[ndx], 0, endLocation);
+               }
+               else 
+               {
+                  Buffer.BlockCopy(byteData, startPos, _hugeStore[ndx], 0, _dataPerPage);
+                  startPos += _dataPerPage;
+               }
+            }
          }
          else
          {
+            InitPage(startPage);
             Buffer.BlockCopy(byteData, 0, _hugeStore[startPage], startLocation, byteData.Length);
          }
-
          _currentWriteIndex += byteData.Length;
-         //_stringPositions[++Count] = _currentWriteIndex;
          _stringPositions.Add(_currentWriteIndex);
          _currentId++;
-         return _currentId;
+         return _currentId - 1;
       }
       public void OptimizeData()
       {
+         throw new NotImplementedException();
       }
       public Dictionary<int, int> MergeStorage(IStorageString storage)
       {
@@ -113,32 +147,43 @@ namespace logAxeEngine.Storage
       #endregion
 
       #region IEqualityComparer<StringGhost>
-      public bool Equals(StringGhost x, StringGhost y)
+      public bool Equals(StringRecord x, StringRecord y)
       {
-         return RetriveString(x.Position).Equals(y.Data);
+         return RetriveString(x.InternalStringID).Equals(y.StringData);
       }
-      public int GetHashCode(StringGhost obj)
+      public int GetHashCode(StringRecord x)
       {
-         return obj.Hash;
+         return x.StringHash;
       }
       #endregion
 
-      public void AddPage(int endPage)
+      private void InitPage(int pageNo)
       {
-         if (endPage >= _hugeStore.GetLength(0))
+         if (pageNo >= _hugeStore.GetLength(0))
          {
-            var temp = new byte[_hugeStore.GetLength(0) + _pagePerBook][];
-            for (var ndx = 0; ndx < _hugeStore.GetLength(0); ndx++)
-            {
-               temp[ndx] = _hugeStore[ndx];
-               _hugeStore[ndx] = null;
-            }
-            _hugeStore = null;
-            _hugeStore = temp;
-            temp = null;
+            AddMorePages();
          }
-         _hugeStore[endPage] = new byte[_dataPerPage];
+
+         if (null == _hugeStore[pageNo])
+            _hugeStore[pageNo] = new byte[_dataPerPage];
       }
+
+      private void AddMorePages()
+      {
+         //Strategy : increase the page by 2 times or add equal no of pages.
+         //var temp = new byte[_hugeStore.GetLength(0) * 2][];
+
+         var temp = new byte[_hugeStore.GetLength(0) + _pagePerBook][];
+         for (var ndx = 0; ndx < _hugeStore.GetLength(0); ndx++)
+         {
+            temp[ndx] = _hugeStore[ndx];
+            _hugeStore[ndx] = null;
+         }
+         _hugeStore = null;
+         _hugeStore = temp;
+      }
+
+
 
       private Tuple<int, int> GetLocation(long index)
       {
@@ -146,7 +191,6 @@ namespace logAxeEngine.Storage
              Convert.ToInt32(index / _dataPerPage),
              Convert.ToInt32(index % _dataPerPage));
       }
-
       private Tuple<int, int, int, int> GetLocationIndexs(long index, long dataLength)
       {
          var (startPage, startLocation) = GetLocation(index);
@@ -158,27 +202,25 @@ namespace logAxeEngine.Storage
              endLocation
              );
       }
-      //private void HelperDumpData()
-      //{
-      //    long len = 0;
-      //    int totalIndex = 0;
-      //    for (var ndx = 0; ndx < _hugeStore.GetLength(0); ndx++)
-      //    {
-
-      //        if (_hugeStore[ndx] != null)
-      //        {
-      //            len += _hugeStore[ndx].Length;
-      //            totalIndex++;
-      //        }
-      //    }
-      //    _logger.LogDebug($"Removing String {Count} Stored in Indexs: {totalIndex} Capacity: {Utils.GetHumanSize(len)} Filled: {Utils.GetHumanSize(_currentWriteIndex)}");
-      //}
    }
 
-   public struct StringGhost
+   /// <summary>
+   /// Struct used temporarilty to use the Dictionary infrastructure to find the duplicates and used in 
+   /// IEqualityComparer of StorageStringXEfficient
+   /// </summary>
+   public struct StringRecord
    {
-      public int Position;
-      public int Hash;
-      public string Data;
+      /// <summary>
+      /// This is the id generated by StorageStringXEfficient
+      /// </summary>
+      public int InternalStringID;
+      /// <summary>
+      /// The has of the string data.
+      /// </summary>
+      public int StringHash;
+      /// <summary>
+      /// The data kept temporarily in memory.
+      /// </summary>
+      public string StringData;
    }
 }
