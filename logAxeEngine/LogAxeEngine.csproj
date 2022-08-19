@@ -48,7 +48,6 @@
     <Compile Include="..\GlobalAssemblyInfo.cs">
       <Link>GlobalAssemblyInfo.cs</Link>
     </Compile>
-    <Compile Include="CmdParser.cs" />
     <Compile Include="Common\AppSize.cs" />
     <Compile Include="Common\LogFile.cs" />
     <Compile Include="Common\MessageExchangeHelper.cs" />

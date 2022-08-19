@@ -7,7 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace logAxeEngine
+namespace logAxeCommon
 {
    public class CmdParser
    {
@@ -76,7 +76,7 @@ namespace logAxeEngine
                      printHelp = true;
                      break;
 
-                  }                  
+                  }
                   cmd.Value = Convert.ChangeType(argc[ndx], cmd.ValueType);
                }
                ndx++;
@@ -97,7 +97,7 @@ namespace logAxeEngine
             Array.Sort(lst);
             foreach (var cmd in lst)
             {
-               if(_cmds[cmd].ValueType == typeof(bool))
+               if (_cmds[cmd].ValueType == typeof(bool))
                   Console.WriteLine($"{cmd.PadRight(15)}       {_cmds[cmd].CmdHelper}");
                else
                   Console.WriteLine($"{cmd.PadRight(15)} <val> {_cmds[cmd].CmdHelper}");

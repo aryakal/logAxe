@@ -15,17 +15,11 @@ namespace logAxe
       /// The main entry point for the application.
       /// </summary>
       [STAThread]
-      static void Main()
+      static void Main(string [] args)
       {
-
-         //#if DEBUG
-         //            Utils.PublishLogs = true;
-         //            Utils.PublishDebugLogs = true;
-         //#endif
-
          if (Environment.OSVersion.Version.Major >= 6)
             SetProcessDPIAware();
-
+         Console.WriteLine(args[0]);
          Application.EnableVisualStyles();
          Application.SetCompatibleTextRenderingDefault(false);         
          ViewCommon.Init2();
