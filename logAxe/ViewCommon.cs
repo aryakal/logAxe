@@ -216,7 +216,7 @@ namespace logAxe
       public static void Init2()
       {
          
-         //LaunchLogAxe();
+         LaunchLogAxe();
          ConfigFrm = new frmConfigAbout();         
          Channel = new Communication(GenerateSeed);
          Channel.Connect();
