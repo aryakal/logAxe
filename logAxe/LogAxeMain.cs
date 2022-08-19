@@ -4,8 +4,8 @@
 //=====================================================================================================================
 
 using System;
-using System.Diagnostics;
 using System.Windows.Forms;
+using logAxeCommon;
 
 namespace logAxe
 {
@@ -17,12 +17,17 @@ namespace logAxe
       [STAThread]
       static void Main(string [] args)
       {
+         var cmd_show_console = "--show-console";
+         var cmdParser = new CmdParser();
+         cmdParser.AddCommand(new CmdInfo() { Cmd = cmd_show_console, ValueType = typeof(bool), CmdHelper = "show the console of logAxeEngine" });
+         cmdParser.Parse(args);
+
          if (Environment.OSVersion.Version.Major >= 6)
             SetProcessDPIAware();
-         Console.WriteLine(args[0]);
+         
          Application.EnableVisualStyles();
          Application.SetCompatibleTextRenderingDefault(false);         
-         ViewCommon.Init2();
+         ViewCommon.Init2(cmdParser.IsEnabled(cmd_show_console));
          ViewCommon.WaitingForInitComplete.Task.Wait();
          Application.Run(new frmMainWindow());         
          ViewCommon.DeInit();

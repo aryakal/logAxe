@@ -186,25 +186,25 @@ namespace logAxe
 
 #region StartLogAxeEngine
       private static Process _logAxeEngineProcess;
-      private static void LaunchLogAxe()
+      private static void LaunchLogAxe(bool showConsole)
       {
          GenerateSeed = $"pipe-{DateTime.Now.ToString(DefaultDateTimeFileFmt)}";
          var startInfo = new ProcessStartInfo();
 #if DEBUG
          startInfo.FileName = @"..\..\..\logAxeEngine\bin\Debug\logAxeEngine.exe";
-         startInfo.Arguments = $"--debug-all --server-pipe {GenerateSeed}";
-         //startInfo.RedirectStandardOutput = true;
-         //startInfo.RedirectStandardError = true;
-         //startInfo.UseShellExecute = false;
-         //startInfo.CreateNoWindow = true;
 #else
-         startInfo.FileName = "logAxeEngine.exe ";
-         startInfo.Arguments = $"--debug-all --server-pipe {GenerateSeed}";
+         startInfo.FileName = "logAxeEngine.exe ";    
          startInfo.RedirectStandardOutput = true;
          startInfo.RedirectStandardError = true;
          startInfo.UseShellExecute = false;
          startInfo.CreateNoWindow = true;
 #endif
+         startInfo.Arguments = showConsole? $"--debug-all --server-pipe {GenerateSeed}" : $"--server-pipe {GenerateSeed}";
+         startInfo.RedirectStandardOutput = !showConsole;
+         startInfo.RedirectStandardError = !showConsole;
+         startInfo.UseShellExecute = showConsole;
+         startInfo.CreateNoWindow = !showConsole;
+
          _logAxeEngineProcess = new Process();
          _logAxeEngineProcess.StartInfo = startInfo;
          _logAxeEngineProcess.EnableRaisingEvents = true;
@@ -213,10 +213,9 @@ namespace logAxe
       }
 #endregion
       //private static ILibALogger _logger;
-      public static void Init2()
+      public static void Init2(bool showConsole)
       {
-         
-         LaunchLogAxe();
+         LaunchLogAxe(showConsole);
          ConfigFrm = new frmConfigAbout();         
          Channel = new Communication(GenerateSeed);
          Channel.Connect();
