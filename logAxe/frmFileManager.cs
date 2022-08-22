@@ -16,6 +16,9 @@ namespace logAxe
 {
    public partial class frmFileManager : Form
    {
+      public LogFileInfo[] FileInfo { get; set; } = new LogFileInfo[0];
+      public int[] InitialSelectedFileNo { get; set; } = new int[0];
+
       public frmFileManager()
       {
          InitializeComponent();
@@ -23,30 +26,23 @@ namespace logAxe
          btnExport.Enabled = false;
          Icon = Properties.Resources.axe_icon_svg_128;
       }
-
-      public int[] InitialSelectedFileNo { get; set; } = new int[0];
-
       public void RefreshList()
       {
          lstBoxFileNames.Items.Clear();
+         lstBoxFileNames.DisplayMember = "DisplayName";
+         lstBoxFileNames.ValueMember = "Key";
+         lstBoxFileNames.Items.AddRange(FileInfo);
 
-         //TODO : Ask for the information and show it once avaliable.
-         //if (ViewCommon.Engine != null)
-         //{
-         //   lstBoxFileNames.DisplayMember = "DisplayName";
-         //   lstBoxFileNames.ValueMember = "Key";
-         //   lstBoxFileNames.Items.AddRange(ViewCommon.Engine.GetAllLogFileInfo());
-         //   if (InitialSelectedFileNo.Length != 0)
-         //   {
-         //      for (int ndx = 0; ndx < lstBoxFileNames.Items.Count; ndx++)
-         //      {
-         //         if (InitialSelectedFileNo.Contains(((LogFileInfo)lstBoxFileNames.Items[ndx]).FileNo))
-         //         {
-         //            lstBoxFileNames.SetSelected(ndx, true);
-         //         }
-         //      }
-         //   }
-         //}
+         if (InitialSelectedFileNo.Length == 0)
+            return;
+         
+         for (int ndx = 0; ndx < lstBoxFileNames.Items.Count; ndx++)
+         {
+            if (InitialSelectedFileNo.Contains(((LogFileInfo)lstBoxFileNames.Items[ndx]).FileNo))
+            {
+               lstBoxFileNames.SetSelected(ndx, true);
+            }
+         }
       }
 
       private void btnExport_Click(object sender, EventArgs e)
@@ -60,18 +56,17 @@ namespace logAxe
                lst.Add((LogFileInfo)item);
             }
          }
+         
+         string preFixDate = ViewCommon.GetConfig().PrefixDate ? $"{DateTime.Now:yyyyMMddHHmmss}" : "";
+         saveFileBox.FileName = $"{ViewCommon.GetConfig().LogExportPrefix}{preFixDate}.zip";
 
-         //TODO prefix date
-         //string preFixDate = ViewCommon.TransitionToCommonFunctionality.UserConfig.PrefixDate ? $"{DateTime.Now:yyyyMMddHHmmss}" : "";
-         //saveFileBox.FileName = $"{ViewCommon.TransitionToCommonFunctionality.UserConfig.LogExportPrefix}{preFixDate}.zip";
-
-         //if (saveFileBox.ShowDialog() == DialogResult.OK)
-         //{
-         //   progressBar.Visible = true;
-         //   progressBar.Maximum = lst.Count;
-         //   //TODO : now we need to send the index of the files only !
-         //   //ViewCommon.Engine.ExportFiles(lst.ToArray(), saveFileBox.FileName);
-         //}
+         if (saveFileBox.ShowDialog() == DialogResult.OK)
+         {
+            //progressBar.Visible = true;
+            //progressBar.Maximum = lst.Count;
+            //TODO : now we need to send the index of the files only !            
+            ViewCommon.ExportFiles(lst.ToArray(), saveFileBox.FileName);
+         }
 
       }
 

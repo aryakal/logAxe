@@ -479,18 +479,11 @@ namespace logAxe
          _table["Category"].Visible = !showCategoryToolStripMenuItem.Checked;
          QueueDrawRequest("showLineNoToolStripMenuItem");
       }
-      private void ShowFileManager(int[] selectedFileIndex)
-      {
-         if (null == _fld)
-         {
-            _fld = new frmFileManager();
-            _fld.InitialSelectedFileNo = selectedFileIndex;
-         }
-         _fld.ShowDialog();
-      }
+
       private void exportFileToolStripMenuItem_Click(object sender, EventArgs e)
       {
-         ShowFileManager(_table.GetFileIndexForSeletedLines());
+         //TODO : export file for the selected lines.
+         //ShowFileManager(_table.GetFileIndexForSeletedLines());
       }
       private void newNotepadToolStripMenuItem_Click(object sender, EventArgs e)
       {
@@ -680,7 +673,8 @@ namespace logAxe
       }
       private void btnManageFile_Click(object sender, EventArgs e)
       {
-         ShowFileManager(new int[] { 1 });
+         ViewCommon.ShowFileManager();
+         //ShowFileManager(new int[] { 1 });
       }
       private void lblTrace_Click(object sender, EventArgs e)
       {

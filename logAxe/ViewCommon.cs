@@ -35,7 +35,7 @@ namespace logAxe
       }
 
       public static TaskCompletionSource<bool> WaitingForInitComplete = new TaskCompletionSource<bool>();
-      public static void OnNewCmd(UnitCmd message) {
+      public static void ProcessCommandsFromChannel(UnitCmd message) {
          switch (message.OpCode) {
             case WebFrameWork.CMD_SET_FILTER_THEME_INFO:
                var info = message.GetData<UnitCmdGetThemeFilterVersionInfo>();
@@ -44,6 +44,13 @@ namespace logAxe
                _savedFilterNames.Clear();
                _savedFilterNames.AddRange(info.ListFilterNames);
                WaitingForInitComplete.SetResult(true);
+               Channel.SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_GET_FILE_LIST, name: ViewCommonName));
+               break;
+            case WebFrameWork.CMD_BST_NEW_VIEW:
+               Channel.SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_GET_FILE_LIST, name: ViewCommonName));
+               break;
+            case WebFrameWork.CMD_SET_FILE_LIST:
+               _uiFileManagerFrm.FileInfo = message.GetData<LogFileInfo[]>();
                break;
          }
 
@@ -177,14 +184,22 @@ namespace logAxe
       #endregion
 
 #region ConfigAbout screen
-      private static frmConfigAbout ConfigFrm { get; set; }
+      private static frmConfigAbout _uiConfigFrm { get; set; }
       public static void ShowPropertyScreen()
       {
-         ConfigFrm.ShowDialog();
+         _uiConfigFrm.ShowDialog();
       }
-#endregion
+      #endregion
 
-#region StartLogAxeEngine
+      #region ConfigAbout screen
+      private static frmFileManager _uiFileManagerFrm { get; set; }
+      public static void ShowFileManager()
+      {
+         _uiFileManagerFrm.ShowDialog();
+      }
+      #endregion
+
+      #region StartLogAxeEngine
       private static Process _logAxeEngineProcess;
       private static void LaunchLogAxe(bool showConsole)
       {
@@ -215,18 +230,27 @@ namespace logAxe
       //private static ILibALogger _logger;
       public static void Init2(bool showConsole)
       {
-         LaunchLogAxe(showConsole);
-         ConfigFrm = new frmConfigAbout();         
+         //LaunchLogAxe(showConsole);
+         _uiConfigFrm = new frmConfigAbout();
+         _uiFileManagerFrm = new frmFileManager();
          Channel = new Communication(GenerateSeed);
          Channel.Connect();
          _currentConfig = new ConfigUI();
-         Channel.RegisterClient(ViewCommonName, ViewCommon.OnNewCmd);
+         Channel.RegisterClient(ViewCommonName, ProcessCommandsFromChannel);
          Channel.SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_GET_FILTER_THEME_INFO, name: ViewCommonName));
       }
       public static void DeInit2()
       {
          Channel.UnRegisterClient(ViewCommonName);
          Channel.Diconnect();
+      }
+
+      public static void ExportFiles(LogFileInfo[] fileInfo, string filename)
+      {
+         Channel.SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_EXPORT_FILES, name: ViewCommonName, value: new UnitCmdExportFile() { 
+            Files=fileInfo,
+            ExportFileName=filename
+         }));
       }
    }
 
@@ -256,6 +280,9 @@ namespace logAxe
          //ViewCommon.Engine.AddFiles(paths: fileList, processAsync: true, addFileAsync: true);
          //ViewCommon.Engine.AddFiles(fileList, false);
       }
+
+
+      
    }
 
    public class DrawSurface

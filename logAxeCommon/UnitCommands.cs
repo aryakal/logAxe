@@ -56,6 +56,13 @@ namespace logAxeCommon
       public ConfigUI CurrentConfigUI { get; set; } = new ConfigUI();
    }
 
+   public class UnitCmdExportFile
+   {
+      
+      public LogFileInfo[] Files { get; set; }
+      public string ExportFileName { get; set; }
+   }
+
    public class WebFrameWork {
       public const string CMD_SET_INFO = "cmd_set_info";
       public const string CMD_SET_FILES = "cmd_set_files";
@@ -86,6 +93,10 @@ namespace logAxeCommon
       public const string CMD_CLIENT_MSG = "cmd_client_message";
       public const string CMD_CLIENT_BST = "cmd_client_broadcast";
 
+      public const string CMD_GET_FILE_LIST = "cmd_get_file_list";
+      public const string CMD_SET_FILE_LIST = "cmd_set_file_list";
+
+      public const string CMD_EXPORT_FILES = "cmd_export_file_list";
    }
 }
 
