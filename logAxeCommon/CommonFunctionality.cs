@@ -26,15 +26,17 @@ namespace logAxeCommon
       
       private SaveConfiguration<ConfigUI> _themes;
       private SaveConfiguration<TermFilter> _filters;
+      public CommonFunctionality(string configPath=".", ILibALogger logger = null)
+      {
+         // When starting the program we need to know where to write the config file and store the filters.
+         // If there is a path defined by user then we will use that folder otherwise as of now on windows
+         // we should use the application data folder to store the log axe data
+         var absPath = 
+            configPath != "." ? 
+            Path.GetFullPath(configPath) :
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "logAxe-data");
 
-      public CommonFunctionality(string configPath, ILibALogger logger =null) {
-         var absPath = Path.GetFullPath(configPath);
          Init(absPath, logger);
-      }
-
-      public CommonFunctionality(ILibALogger logger = null)
-      {         
-         Init(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "logAxe-data"), logger);
       }
       private void Init(string configPath, ILibALogger logger = null) {
          _logger = logger;
@@ -44,8 +46,8 @@ namespace logAxeCommon
          _logger?.Info($"configRoot, {RootAppDataPath}");
          _logger?.Info($"    filter, {PathSavedFilterRoot}");
          _logger?.Info($"    themes, {PathSavedThemes}");
-         _themes = new SaveConfiguration<ConfigUI>("theme", PathSavedThemes, Logging.GetLogger("config"));
-         _filters = new SaveConfiguration<TermFilter>("filter", PathSavedFilterRoot, Logging.GetLogger("config"));
+         _themes = new SaveConfiguration<ConfigUI>("theme", PathSavedThemes, Logging.GetLogger("theme"));
+         _filters = new SaveConfiguration<TermFilter>("filter", PathSavedFilterRoot, Logging.GetLogger("filter"));
 
          _themes.Load();
          _filters.Load();
@@ -88,7 +90,7 @@ namespace logAxeCommon
       }
 
       public TermFilter GetFilter(string name)
-      {
+      {         
          return _filters.ReadConfig(name);
       }
 
@@ -145,7 +147,7 @@ namespace logAxeCommon
 
       public string[] GetList()
       {
-
+         _logger?.Info($"GetList {_filterNames.Count}");
          return _filterNames.Keys.ToArray();
       }
 

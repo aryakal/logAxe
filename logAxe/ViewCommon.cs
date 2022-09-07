@@ -20,58 +20,98 @@ using System.Diagnostics;
 
 namespace logAxe
 {
-   partial class ViewCommon
+   class ViewCommon
    {
-      //TODO : set version information.
       public static string VersionNo { get; set; } = "Version yet to come";
+      public static string DefaultDateTimeFmt { get; } = "yyyy-MM-dd hh:mm:ss.fff";
+      public static string DefaultDateTimeFileFmt { get; } = "yyyyMMddhhmmssfff";
+      public static Communication Channel { get; private set; }
+
+      public static string GenerateSeed = CommonFunctionality.ServerPipeRootPath;
+
+      #region Init and Deinit
+      public static void Init(bool showConsole)
+      {
+         LaunchLogAxe(showConsole);
+         _uiConfigFrm = new frmConfigAbout();
+         _uiFileManagerFrm = new frmFileManager();
+         Channel = new Communication(GenerateSeed);
+         Channel.Connect();
+         
+         //Channel.RegisterClient(ViewCommonName, ProcessCommandsFromChannel);
+         //Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_GET_FILTER_THEME_INFO, name: ViewCommonName));
+      }
       public static void DeInit()
       {
+
          try
          {
             _logAxeEngineProcess?.Kill();
+            Channel.Diconnect();
          }
-         catch {
+         catch (InvalidOperationException)
+         { 
          }
       }
+      #endregion
 
-      public static TaskCompletionSource<bool> WaitingForInitComplete = new TaskCompletionSource<bool>();
-      public static void ProcessCommandsFromChannel(UnitCmd message) {
-         switch (message.OpCode) {
-            case WebFrameWork.CMD_SET_FILTER_THEME_INFO:
-               var info = message.GetData<UnitCmdGetThemeFilterVersionInfo>();
-               VersionNo = info.VersionInfo;
-               _currentConfig = info.CurrentConfigUI;
-               _savedFilterNames.Clear();
-               _savedFilterNames.AddRange(info.ListFilterNames);
-               WaitingForInitComplete.SetResult(true);
-               Channel.SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_GET_FILE_LIST, name: ViewCommonName));
-               break;
-            case WebFrameWork.CMD_BST_NEW_VIEW:
-               Channel.SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_GET_FILE_LIST, name: ViewCommonName));
-               break;
-            case WebFrameWork.CMD_SET_FILE_LIST:
-               _uiFileManagerFrm.FileInfo = message.GetData<LogFileInfo[]>();
-               break;
-         }
-
-      }
-
-      //public static ILogEngine Engine { get; set; }
-      //public static IMessageBroker MessageBroker { get; set; }
-
-      //public static void BroadCastMessage(ILogAxeMessage msg)
-      //{
-      //   _msgHelper.PostMessage(msg);
-      //}
-
-      #region User_config        
+      #region User Config
       
+      public static ConfigUI ConfigOfSystem { get; set; } = new ConfigUI();
+
+      #endregion
+
+      #region ConfigAbout screen
+      private static frmConfigAbout _uiConfigFrm { get; set; }
+
+      public static void ShowPropertyScreen()
+      {
+         _uiConfigFrm.ShowDialog();
+      }
+      
+      #endregion
+
+      #region ConfigAbout screen
+      private static frmFileManager _uiFileManagerFrm { get; set; }
+      public static void ShowFileManager()
+      {
+         _uiFileManagerFrm.ShowDialog();
+      }
+      #endregion
+
+      #region StartLogAxeEngine
+      private static Process _logAxeEngineProcess;
+      private static void LaunchLogAxe(bool showConsole)
+      {
+         GenerateSeed = $"pipe-{DateTime.Now.ToString(DefaultDateTimeFileFmt)}";
+         var startInfo = new ProcessStartInfo();
+#if DEBUG
+         startInfo.FileName = @"..\..\..\logAxeEngine\bin\Debug\logAxeEngine.exe";
+#else
+         startInfo.FileName = "logAxeEngine.exe ";    
+         startInfo.RedirectStandardOutput = true;
+         startInfo.RedirectStandardError = true;
+         startInfo.UseShellExecute = false;
+         startInfo.CreateNoWindow = true;
+#endif
+         startInfo.Arguments = showConsole ? $"--debug-all --server-pipe {GenerateSeed} --close-noclient" : $"--server-pipe {GenerateSeed} --close-noclient";
+         startInfo.RedirectStandardOutput = !showConsole;
+         startInfo.RedirectStandardError = !showConsole;
+         startInfo.UseShellExecute = showConsole;
+         startInfo.CreateNoWindow = !showConsole;
+
+         _logAxeEngineProcess = new Process();
+         _logAxeEngineProcess.StartInfo = startInfo;
+         _logAxeEngineProcess.EnableRaisingEvents = true;
+         _logAxeEngineProcess.Start();
+
+      }
       #endregion
 
       #region New Window
       /*
        * If the window is open then we would like to knwo which window it is this. 
-       */      
+       */
       private static Dictionary<string, frmMainWindow> _windows = new Dictionary<string, frmMainWindow>();
       public static int TotalWindows = 1;
       private static int NextId = 0;
@@ -81,7 +121,7 @@ namespace logAxe
          var frm = new frmMainWindow();
          frm.FrmID = $"View {NextId}";
          _windows.Add(frm.FrmID, frm);
-         TotalWindows = _windows.Count+1;
+         TotalWindows = _windows.Count + 1;
          frm.Show();
          //_msgHelper.PostMessage(new LogAxeGenericMessage() { MessageType = LogAxeMessageEnum.NewMainFrmAddRemoved });
       }
@@ -90,7 +130,7 @@ namespace logAxe
          _windows.Remove(id);
          TotalWindows = _windows.Count + 1;
          //_msgHelper.PostMessage(new LogAxeGenericMessage() { MessageType = LogAxeMessageEnum.NewMainFrmAddRemoved });
-      }      
+      }
       #endregion
 
       #region New notepad window
@@ -121,188 +161,77 @@ namespace logAxe
          return _notepads.Keys.ToList();
       }
       #endregion
+      
 
-      #region SavedFilters
-      private static List<string> _savedFilterNames = new List<string>();
-      public static void AddFilter(string name, TermFilter filter)
+      #region interproc command
+      public static void AddFiles(string viewName, string[] fileList)
       {
-         if (name == "")
-            return;
-         filter.Name = name;
-         Channel.SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_SAVE_FILTER, name: ViewCommonName, value: filter));
+         ViewCommon.Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_PUT_FILES, name: viewName, value: new UnitCmdAddDiskFiles() { FilePaths = fileList }));
       }
 
-      //public static void RemoveFilter(string name)
-      //{
-      //   var filePath = Path.Combine(PathSavedFilterRoot, $"{name}{_filterExtension}");
-      //   if (File.Exists(filePath))
-      //   { 
-      //      File.Delete(filePath);
-      //      LoadAndCacheSavedFilterName();
-      //   }
-      //   //_msgHelper.PostMessage(new LogAxeGenericMessage() { MessageType = LogAxeMessageEnum.FilterChanged });
-      //}
-
-      public static string[] GetAllFilterNames()
+      public static void ExportFiles(string viewName, LogFileInfo[] fileInfo, string filename)
       {
-         return _savedFilterNames.ToArray();
-      }
-
-      //public static TermFilter GetFilter(string name, string uid)
-      //{
-         
-      //}
-      #endregion
-
-
-   }
-
-
-   partial class ViewCommon {
-      private readonly static string ViewCommonName = "ViewCommonLogAxe";
-      public static string DefaultDateTimeFmt { get; } = "yyyy-MM-dd hh:mm:ss.fff";
-      public  static string DefaultDateTimeFileFmt { get; } = "yyyyMMddhhmmssfff";
-      public static Communication Channel { get; private set; }
-      public static string GenerateSeed = CommonFunctionality.ServerPipeRootPath;
-
-      #region User Config
-      private static ConfigUI _currentConfig;
-      public static ConfigUI GetConfig()
-      {
-         return _currentConfig;
-      }
-
-      public static void SetConfig(ConfigUI config) {         
-         _currentConfig = config;
-         //Channel.SendMsg(
-         //   new UnitCmd(opCode: WebFrameWork.CMD_CLIENT_BROADCAST, name: ViewCommonName, value: 
-         //   new UnitCmd(opCode: WebFrameWork.CMD_BROADCAST_NEW_THEME, name: WebFrameWork.CLIENT_BROADCAST)
-         //   ));
-         Channel.SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_SAVE_CONFIG, name: ViewCommonName, value: _currentConfig));
-      }
-
-      #endregion
-
-#region ConfigAbout screen
-      private static frmConfigAbout _uiConfigFrm { get; set; }
-      public static void ShowPropertyScreen()
-      {
-         _uiConfigFrm.ShowDialog();
-      }
-      #endregion
-
-      #region ConfigAbout screen
-      private static frmFileManager _uiFileManagerFrm { get; set; }
-      public static void ShowFileManager()
-      {
-         _uiFileManagerFrm.ShowDialog();
-      }
-      #endregion
-
-      #region StartLogAxeEngine
-      private static Process _logAxeEngineProcess;
-      private static void LaunchLogAxe(bool showConsole)
-      {
-         GenerateSeed = $"pipe-{DateTime.Now.ToString(DefaultDateTimeFileFmt)}";
-         var startInfo = new ProcessStartInfo();
-#if DEBUG
-         startInfo.FileName = @"..\..\..\logAxeEngine\bin\Debug\logAxeEngine.exe";
-#else
-         startInfo.FileName = "logAxeEngine.exe ";    
-         startInfo.RedirectStandardOutput = true;
-         startInfo.RedirectStandardError = true;
-         startInfo.UseShellExecute = false;
-         startInfo.CreateNoWindow = true;
-#endif
-         startInfo.Arguments = showConsole? $"--debug-all --server-pipe {GenerateSeed}" : $"--server-pipe {GenerateSeed}";
-         startInfo.RedirectStandardOutput = !showConsole;
-         startInfo.RedirectStandardError = !showConsole;
-         startInfo.UseShellExecute = showConsole;
-         startInfo.CreateNoWindow = !showConsole;
-
-         _logAxeEngineProcess = new Process();
-         _logAxeEngineProcess.StartInfo = startInfo;
-         _logAxeEngineProcess.EnableRaisingEvents = true;
-         _logAxeEngineProcess.Start();
-         
-      }
-#endregion
-      //private static ILibALogger _logger;
-      public static void Init2(bool showConsole)
-      {
-         //LaunchLogAxe(showConsole);
-         _uiConfigFrm = new frmConfigAbout();
-         _uiFileManagerFrm = new frmFileManager();
-         Channel = new Communication(GenerateSeed);
-         Channel.Connect();
-         _currentConfig = new ConfigUI();
-         Channel.RegisterClient(ViewCommonName, ProcessCommandsFromChannel);
-         Channel.SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_GET_FILTER_THEME_INFO, name: ViewCommonName));
-      }
-      public static void DeInit2()
-      {
-         Channel.UnRegisterClient(ViewCommonName);
-         Channel.Diconnect();
-      }
-
-      public static void ExportFiles(LogFileInfo[] fileInfo, string filename)
-      {
-         Channel.SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_EXPORT_FILES, name: ViewCommonName, value: new UnitCmdExportFile() { 
-            Files=fileInfo,
-            ExportFileName=filename
+         Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_GET_EXPORT_FILES, name: viewName, value: new UnitCmdExportFile()
+         {
+            Files = fileInfo,
+            ExportFileName = filename
          }));
       }
+
+      public static void GetFileAppMemInfo(string viewName)
+      {
+         Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_GET_FILE_APP_MEM_INFO, name: viewName));
+      }
+
+      public static void GetCurrentTheme(string viewName) {
+         Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_GET_CONFIG_CURRENT, name: viewName));
+      }
+
+      public static void PostCurrentTheme(ConfigUI config)
+      {
+         ViewCommon.ConfigOfSystem = config;
+         Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_POST_CONFIG, name: WebFrameWork.CLIENT_BST_ALL, value: config));
+      }
+
+      public static void GetFilterList(string viewName)
+      {
+         Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_GET_FILTER_LIST, name: viewName));
+      }
+
+      public static void AddFilter(string viewName, string filterName, TermFilter filter)
+      {
+         filter.Name = filterName;
+         Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_POST_FILTER_SAVE, name: viewName, value: filter));
+      }
+
+      #endregion
    }
+   //partial class ViewCommon
+   //{
+   //   //public static void ProcessCommandsFromChannel(UnitMsg message) {
+   //   //   switch (message.OpCode) {
+   //   //      //case WebFrameWork.CMD_PUT_FILTER_THEME_INFO:
+   //   //      //   var info = message.GetData<UnitCmdGetThemeFilterVersionInfo>();
+   //   //      //   VersionNo = info.VersionInfo;
+   //   //      //   _currentConfig = info.CurrentConfigUI;
+   //   //      //   _savedFilterNames.Clear();
+   //   //      //   _savedFilterNames.AddRange(info.ListFilterNames);
+   //   //      //   //WaitingForInitComplete.SetResult(true);
+   //   //      //   Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_GET_FILE_LIST, name: ViewCommonName));
+   //   //      //   break;
+   //   //      case WebFrameWork.CMD_PUT_NEW_VIEW:
+   //   //         Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_GET_FILE_LIST, name: ViewCommonName));
+   //   //         break;
+   //   //      case WebFrameWork.CMD_PUT_FILE_LIST:
+   //   //         _uiFileManagerFrm.FileInfo = message.GetData<LogFileInfo[]>();
+   //   //         break;
+   //   //   }
 
-   public sealed class HelperAttachFileDrop
-   {
-      public HelperAttachFileDrop(Control cntrl)
-      {
-         cntrl.AllowDrop = true;
-         cntrl.DragDrop += OnDragDrop;
-         cntrl.DragEnter += OnDragEnger;
-      }
+   //   //}
+   
 
-      private void OnDragEnger(object sender, DragEventArgs e)
-      {
-         //https://docs.microsoft.com/en-us/dotnet/desktop/winforms/advanced/walkthrough-performing-a-drag-and-drop-operation-in-windows-forms?view=netframeworkdesktop-4.8
-         if (e.Data.GetDataPresent(DataFormats.FileDrop))
-            e.Effect = DragDropEffects.Copy;
-         else
-            e.Effect = DragDropEffects.None;
-      }
-
-      private void OnDragDrop(object sender, DragEventArgs e)
-      {
-         string[] fileList = (string[])e.Data.GetData(DataFormats.FileDrop, false);
-         ViewCommon.Channel.SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_SET_FILES, name: "all", value: new UnitCmdAddDiskFiles() { FilePaths = fileList}));
-         // TODO : this is easy peasy
-         //ViewCommon.Engine.AddFiles(paths: fileList, processAsync: true, addFileAsync: true);
-         //ViewCommon.Engine.AddFiles(fileList, false);
-      }
 
 
       
-   }
-
-   public class DrawSurface
-   {
-      public Graphics gc;
-      public Bitmap bmp;
-      public bool SetSize(Size size)
-      {
-         if (size.Width == 0 || size.Height == 0) return false;
-         if (bmp != null && bmp.Size == size) return false;
-
-         bmp = new Bitmap(size.Width, size.Height);
-         gc = Graphics.FromImage(bmp);
-         return true;
-      }
-   }
-
-   public enum CntrlTextViewerMsg { 
-      SetTitle,
-      AwakeWindows
-
-   }
+   //}
 }

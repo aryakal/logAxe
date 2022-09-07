@@ -15,6 +15,7 @@ namespace logAxe
          InitializeComponent();      
          if (ViewCommon.Channel != null)
          {
+            
             new HelperAttachFileDrop(this);
             SetTitle();
          }
@@ -72,6 +73,19 @@ namespace logAxe
       private bool IsMainView()
       {
          return "Main" == FrmID;
+      }
+
+      private void frmMainWindow_Load(object sender, EventArgs e)
+      {
+         if (IsMainView()) {
+            cntrlTextViewer1.EnableFileAppInfo();
+         }
+         
+      }
+
+      public void SetMainWindowResponsibilities()
+      {
+         cntrlTextViewer1.SetAsMainWindow();
       }
    }
 }

@@ -6,10 +6,9 @@
 using logAxeEngine.Interfaces;
 namespace logAxeEngine.EventMessages
 {
-   public class FileParseProgressEvent : ILogAxeMessage
+   public class FileParseProgressEvent
    {
       public string FromClientID { get; set; }
-      public LogAxeMessageEnum MessageType { get; set; } = LogAxeMessageEnum.FileParseProgress;
       public long TotalFileCount { get; set; }
       public long TotalFileLoadedCount { get; set; }
       public long TotalFileParsedCount { get; set; }

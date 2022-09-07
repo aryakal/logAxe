@@ -25,9 +25,8 @@ namespace logAxeEngine.UnitTest
       [TestInitialize]
       public void Setup()
       {
-         var pluginManager = new PluginManager();
-         var messageBroker = A.Fake<IMessageBroker>();
-         _sut = new LogAxeEngineManager(messageBroker, pluginManager);
+         var pluginManager = new PluginManager();         
+         _sut = new LogAxeEngineManager(pluginManager);
          var fakePlugin = new UnitTestLogParser();
          pluginManager.LoadPlugin(fakePlugin);
 
@@ -36,9 +35,8 @@ namespace logAxeEngine.UnitTest
 
       [TestMethod]
       public void TestFileClear() {
-         var pluginManager = new PluginManager();
-         var messageBroker = A.Fake<IMessageBroker>();
-         var localSut = new LogAxeEngineManager(messageBroker, pluginManager);
+         var pluginManager = new PluginManager();         
+         var localSut = new LogAxeEngineManager(pluginManager);
          var fakePlugin = new UnitTestLogParser();
          pluginManager.LoadPlugin(fakePlugin);
 

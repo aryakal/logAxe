@@ -27,35 +27,26 @@ namespace logAxeEngine.Engines
    public class LogAxeEngineManager : ILogEngine
    {
       private int UniqueFileId { get; set; } = LogLine.INVALID;
-      private readonly ILibALogger _logger;
-      private readonly List<IFileObject> _allFiles = new List<IFileObject>();
+      private readonly ILibALogger _logger;      
       private readonly FileParseProgressEvent _fileProgressStat = new FileParseProgressEvent();
       private readonly SemaphoreSlim _lockAddition = new SemaphoreSlim(1, 1);
-      //private readonly MessageExchangeHelper _messenger;
       private readonly IPluginManager _pluginManger;
       private IMessageExchanger _messgeExchanger;
 
-      //public IMessageBroker MessageBroker { get; }
+      private readonly List<IFileObject> _allFiles = new List<IFileObject>();
+      private long _totalFileSize = 0;
 
       // Storage dbs
       private IStorageString _storeMsgStack;
       private IStorageString _storeTag;
       private IStorageDataBase _database;
 
-      public static LogAxeEngineManager HelperCreateDefaultEngine()
-      {
-         return new LogAxeEngineManager(new LogMessageEngine(), new PluginManager());
-      }
-
-      public LogAxeEngineManager(IMessageBroker messageBroker, IPluginManager pluginManager)
+      public LogAxeEngineManager(IPluginManager pluginManager)
       {
          _messgeExchanger = null;
-         _logger = Logging.GetLogger("logEng");
-         //MessageBroker = messageBroker;
-         _pluginManger = pluginManager;
-         //_messenger = new MessageExchangeHelper(MessageBroker, null);
-         //MessageBroker.Start();
+         _logger = Logging.GetLogger("logEng");         
 
+         _pluginManger = pluginManager;
          Clear();
       }
 
@@ -84,7 +75,7 @@ namespace logAxeEngine.Engines
          _storeTag = new StorageStringDB();
          _database = new StorageMetaDatabase(_storeMsgStack, _storeTag);
          _allFiles.Clear();
-         _messgeExchanger?.BroadCast(new UnitCmd(opCode: WebFrameWork.CMD_BST_NEW_VIEW, name: WebFrameWork.CLIENT_BST_ALL));
+         _messgeExchanger?.BroadCast(new UnitMsg(opCode: WebFrameWork.CMD_PUT_NEW_VIEW, name: WebFrameWork.CLIENT_BST_ALL));
          UniqueFileId = LogLine.INVALID;
          GC.Collect();
       }
@@ -286,6 +277,7 @@ namespace logAxeEngine.Engines
       private void ProcessFiles(IFileObject[] files, bool useParallelTasks = true)
       {
          var (validFiles, totalFileSize) = HelperAssociateParser(files);
+         _totalFileSize += totalFileSize;
          _allFiles.AddRange(files);
 
          if (0 == validFiles)
@@ -320,7 +312,7 @@ namespace logAxeEngine.Engines
          //_messenger.PostMessage(_fileProgressStat);
          //_messgeExchanger?.BroadCast(null);
          //_messenger.PostMessage(LogAxeMessageEnum.NewViewAnnouncement);
-         _messgeExchanger?.BroadCast(new UnitCmd(opCode: WebFrameWork.CMD_BST_NEW_VIEW, name: WebFrameWork.CLIENT_BST_ALL));         
+         _messgeExchanger?.BroadCast(new UnitMsg(opCode: WebFrameWork.CMD_PUT_NEW_VIEW, name: WebFrameWork.CLIENT_BST_ALL));         
       }
       private void AddFileToIndex(IFileObject fo)
       {
@@ -387,6 +379,11 @@ namespace logAxeEngine.Engines
       public void RegisterMessageExchanger(IMessageExchanger exchanger)
       {
          _messgeExchanger = exchanger;
+      }
+
+      public UnitCmdFileAppMemInfo GetFileAppMemInfo()
+      {
+         return new UnitCmdFileAppMemInfo() { AppSize = new AppSize().Memory, FileSize = _totalFileSize };
       }
 
       #endregion

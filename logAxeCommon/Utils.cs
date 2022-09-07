@@ -37,7 +37,7 @@ namespace logAxeCommon
             size = size / (1024);
          }
 
-         var ret = $"{size:.00} {unit}";
+         var ret = size==0 ? "" :$"{size:.00} {unit}";
          if (showInt)
          {
             ret = $"{(int)size} {unit}";
@@ -49,16 +49,16 @@ namespace logAxeCommon
       {
          return new AppSize();
       }
-      public static string AppMemGapSize(double size)
-      {
-         return GetHumanSize(GetAppMemSize().Memory - size);
-      }
-      public static AppSize GetAppMemSizeStablized()
-      {
-         ClearAllGCMemory();
-         Thread.Sleep(1000);
-         return GetAppMemSize();
-      }
+      //public static string AppMemGapSize(double size)
+      //{
+      //   return GetHumanSize(GetAppMemSize().Memory - size);
+      //}
+      //public static AppSize GetAppMemSizeStablized()
+      //{
+      //   ClearAllGCMemory();
+      //   Thread.Sleep(1000);
+      //   return GetAppMemSize();
+      //}
       public static string ClearAllGCMemory()
       {
          var prev = GetAppMemSize();

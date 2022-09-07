@@ -25,9 +25,8 @@ namespace logAxeEngine.UnitTest
       [TestInitialize]
       public void Setup()
       {
-         var pluginManager = new PluginManager();
-         var messageBroker = A.Fake<IMessageBroker>();
-         _sut = new LogAxeEngineManager(messageBroker, pluginManager);
+         var pluginManager = new PluginManager();         
+         _sut = new LogAxeEngineManager(pluginManager);
          var goodPlugin = new UnitTestLogParser();
          var errorPlugin = A.Fake<ILogParser>();
          A.CallTo(() => errorPlugin.CanParseLogFile(A<string>.That.EndsWith("fail.txt"))).Returns(true);

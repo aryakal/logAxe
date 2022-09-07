@@ -20,7 +20,7 @@ namespace logAxe
       ILDClient _client;
       Task _backgroundClientServer;
       CancellationTokenSource _cts;
-      Dictionary<string, Action<UnitCmd>> _clients = new Dictionary<string, Action<UnitCmd>>();
+      Dictionary<string, Action<UnitMsg>> _clients = new Dictionary<string, Action<UnitMsg>>();
       SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
       public Communication(string serverName)
       {
@@ -60,7 +60,7 @@ namespace logAxe
          _backgroundClientServer.Wait();
       }
 
-      public UnitCmd ProcessUnitCmd(LibCommProtoMsgType msgType, IClientInfo clientInfo, UnitCmd message = null)
+      public UnitMsg ProcessUnitCmd(LibCommProtoMsgType msgType, IClientInfo clientInfo, UnitMsg message = null)
       {
          //TODO : Still donot know what will happen to disconnect.
          switch (msgType)
@@ -89,7 +89,7 @@ namespace logAxe
 
       }
 
-      public void RegisterClient(string clientName, Action<UnitCmd> command)
+      public void RegisterClient(string clientName, Action<UnitMsg> command)
       {
          try
          {
@@ -119,7 +119,7 @@ namespace logAxe
          }
       }
 
-      public void SendMsg(UnitCmd cmd)
+      public void SendMsg(UnitMsg cmd)
       {
          _client.Send(cmd).Wait();
       }
@@ -133,7 +133,7 @@ namespace logAxe
             {
                foreach (var client in _clients)
                {
-                  SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_SET_REGISTER, name: client.Key,
+                  SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_PUT_REGISTER, name: client.Key,
                      value: new RegisterClient()
                      {
                         Name = client.Key,

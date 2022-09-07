@@ -3,18 +3,23 @@
 //--------------------------------------------------------------------------------------------------------------------
 //=====================================================================================================================
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using libACommunication;
+using System.Drawing;
 
 
-namespace logAxeCommon.Interfaces
+namespace logAxe
 {
-   public interface IMessageExchanger
-   {      
-      void BroadCast(UnitMsg cmd);
+   public class DrawSurface
+   {
+      public Graphics gc;
+      public Bitmap bmp;
+      public bool SetSize(Size size)
+      {
+         if (size.Width == 0 || size.Height == 0) return false;
+         if (bmp != null && bmp.Size == size) return false;
+
+         bmp = new Bitmap(size.Width, size.Height);
+         gc = Graphics.FromImage(bmp);
+         return true;
+      }
    }
 }

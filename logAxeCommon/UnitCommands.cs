@@ -63,40 +63,54 @@ namespace logAxeCommon
       public string ExportFileName { get; set; }
    }
 
-   public class WebFrameWork {
-      public const string CMD_SET_INFO = "cmd_set_info";
-      public const string CMD_SET_FILES = "cmd_set_files";
-      public const string CMD_GET_LINES = "cmd_get_lines";
-      public const string CMD_SET_LINES = "cmd_set_lines";
-      public const string CMD_SET_REGISTER = "register";
-      public const string CMD_BST_NEW_VIEW = "cmd_bc_new_view";
-      public const string CMD_SET_NEW_VIEW = "cmd_set_new_view";
-      public const string CLIENT_BST_ALL = "all-clients";      
-      
-      public const string CMD_SET_CLEAR = "cmd_set_clear";
+   public class UnitCmdFileAppMemInfo
+   {
+      public long FileSize { get; set; }
+      public long AppSize { get; set; }
+   }
 
-      public const string CMD_GET_FILTER_THEME_INFO = "cmd_get_filter_theme_info";
-      public const string CMD_SET_FILTER_THEME_INFO = "cmd_set_filter_theme_info";
+   public class WebFrameWork {
+      public const string CMD_PUT_INFO = "cmd_put_info";
+      public const string CMD_PUT_FILES = "cmd_put_files";
+      public const string CMD_GET_LINES = "cmd_get_lines";
+      public const string CMD_PUT_LINES = "cmd_put_lines";
+      public const string CMD_PUT_REGISTER = "cmd_put_register";
+      public const string CMD_PUT_NEW_VIEW = "cmd_put_new_view";      
+      public const string CLIENT_BST_ALL = "client_bst_all";      
+      
+      public const string CMD_PUT_CLEAR = "cmd_put_clear";
 
       public const string CMD_GET_CONFIG_CURRENT = "cmd_get_config_current";
-      public const string CMD_LIST_CONFIGS = "cmd_get_config_all";
-      public const string CMD_SAVE_CONFIG = "cmd_save_config";
+      public const string CMD_PUT_CONFIG_CURRENT = "cmd_put_config_current";
+      public const string CMD_GET_CONFIG_LIST = "cmd_get_config_list";
+      public const string CMD_POST_CONFIG = "cmd_post_config";
 
-      public const string CMD_LIST_FILTERS = "cmd_get_filter_all";
-      public const string CMD_SAVE_FILTER = "cmd_save_fitler";
+      //public const string CMD_GET_FILTER_THEME_INFO = "cmd_get_filter_theme_info";
+      //public const string CMD_PUT_FILTER_THEME_INFO = "cmd_put_filter_theme_info";
+
+      public const string CMD_GET_FILTER_LIST = "cmd_get_filter_list";      
+      public const string CMD_POST_FILTER_SAVE = "cmd_post_filter_save";
+      public const string CMD_DEL_FILTER_DETAIL = "cmd_del_filter_detail";
       public const string CMD_SET_FILTER = "cmd_set_filter";
-      public const string CMD_GET_INFO_FILTER = "cmd1";
-      public const string CMD_SET_INFO_FILTER = "cmd2";
+      public const string CMD_GET_FILTER_DETAILS = "cmd_get_filter_details";
+      public const string CMD_PUT_FILTER_DETAILS = "cmd_put_filter_details";
 
-      public const string CMD_BST_NEW_THEME = "cmd_boradcast_new_theme";
+      
 
-      public const string CMD_CLIENT_MSG = "cmd_client_message";
-      public const string CMD_CLIENT_BST = "cmd_client_broadcast";
+      public const string CMD_GET_CLIENT_MSG = "cmd_get_client_msg";
+      public const string CMD_PUT_CLIENT_BST = "cmd_put_client_bst";
 
       public const string CMD_GET_FILE_LIST = "cmd_get_file_list";
-      public const string CMD_SET_FILE_LIST = "cmd_set_file_list";
+      public const string CMD_PUT_FILE_LIST = "cmd_put_file_list";
 
-      public const string CMD_EXPORT_FILES = "cmd_export_file_list";
+      public const string CMD_GET_EXPORT_FILES = "cmd_get_export_files";
+
+      public const string CMD_GET_FILE_APP_MEM_INFO = "cmd_get_file_app_mem_info";
+      public const string CMD_PUT_FILE_APP_MEM_INFO = "cmd_put_file_app_mem_info";
+
+      public const string CMD_PUT_ALL_VIEW_UPDATE = "cmd_put_all_view_update";
+      public const string CMD_PUT_ALL_FILTER_UPDATE = "cmd_put_all_filter_update";
+      public const string CMD_PUT_ALL_THEME_UPDATE = "cmd_put_all_theme_update";
    }
 }
 

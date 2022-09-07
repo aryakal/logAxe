@@ -3,18 +3,12 @@
 //--------------------------------------------------------------------------------------------------------------------
 //=====================================================================================================================
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using libACommunication;
 
-
-namespace logAxeCommon.Interfaces
+namespace logAxe
 {
-   public interface IMessageExchanger
-   {      
-      void BroadCast(UnitMsg cmd);
+   public enum CntrlTextViewerMsg
+   {
+      SetTitle,
+      AwakeWindows
    }
 }

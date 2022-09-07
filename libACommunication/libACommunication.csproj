@@ -46,7 +46,10 @@
   <ItemGroup>
     <Compile Include="Common.cs" />
     <Compile Include="HttpCommunication.cs" />
-    <Compile Include="InterProc.cs" />
+    <Compile Include="PipeClient.cs" />
+    <Compile Include="PipeClientQueued.cs" />
+    <Compile Include="PipeServer.cs" />
+    <Compile Include="PipeServerClientInstace.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

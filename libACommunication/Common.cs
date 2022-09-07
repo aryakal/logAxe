@@ -18,10 +18,10 @@ namespace libACommunication
       ClientId
    }
 
-   public class UnitCmd
+   public class UnitMsg
    {
-      public UnitCmd() { }
-      public UnitCmd(string opCode, string name, object value = null, string responseStatus = "None")
+      public UnitMsg() { }
+      public UnitMsg(string opCode, string name, object value = null, string responseStatus = "None")
       {
          OpCode = opCode;
          UID = name;
@@ -29,7 +29,7 @@ namespace libACommunication
          Status = responseStatus;
       }
 
-      public UnitCmd(string opCode, IClientInfo info, object value = null, string responseStatus = "None")
+      public UnitMsg(string opCode, IClientInfo info, object value = null, string responseStatus = "None")
       {
          OpCode = opCode;         
          UID = info?.ID;
@@ -87,14 +87,14 @@ namespace libACommunication
    /// </summary>
    public interface IProtoProcessorCommand
    {
-      UnitCmd ProcessUnitCmd(LibCommProtoMsgType msgType, IClientInfo clientInfo, UnitCmd message = null);
+      UnitMsg ProcessUnitCmd(LibCommProtoMsgType msgType, IClientInfo clientInfo, UnitMsg message = null);
    }
 
    public interface ILDClient
    {
       Task Run(CancellationToken token);
       void RunForever(CancellationToken token);
-      Task Send(UnitCmd msg);
+      Task Send(UnitMsg msg);
 
    }
 
@@ -102,8 +102,8 @@ namespace libACommunication
    {
       Task Run(CancellationToken token);
       void RunForever(CancellationToken token);
-      Task Send(IClientInfo id, UnitCmd msg);
-      Task BroadCast(UnitCmd msg);
+      Task Send(IClientInfo id, UnitMsg msg);
+      Task BroadCast(UnitMsg msg);
    }
 
    public interface IPLCommunication
@@ -111,7 +111,7 @@ namespace libACommunication
       Task Run(CancellationToken token);
       void RunForever(CancellationToken token);
       Task Send(string msg);
-      Task Send(UnitCmd msg);
+      Task Send(UnitMsg msg);
       IClientInfo ID { get; }
    }
 

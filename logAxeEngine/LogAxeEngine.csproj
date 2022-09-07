@@ -50,10 +50,8 @@
     </Compile>
     <Compile Include="Common\AppSize.cs" />
     <Compile Include="Common\LogFile.cs" />
-    <Compile Include="Common\MessageExchangeHelper.cs" />
     <Compile Include="Common\SystemIO.cs" />
     <Compile Include="Engines\LogAxeEngineManager.cs" />
-    <Compile Include="Engines\LogMessageEngine.cs" />
     <Compile Include="Engines\PluginManager.cs" />
     <Compile Include="EventMessages\AddLineToNotepadEvent.cs" />
     <Compile Include="EventMessages\CurentResourceUsage.cs" />
@@ -62,7 +60,6 @@
     <Compile Include="http\logAxeHttpServerProxy.cs" />
     <Compile Include="Interfaces\IEngine.cs" />
     <Compile Include="Interfaces\ILogLinesStorage.cs" />
-    <Compile Include="Interfaces\IMessageBroker.cs" />
     <Compile Include="Interfaces\IMessageReceiver.cs" />
     <Compile Include="Interfaces\IPluginManager.cs" />
     <Compile Include="Interfaces\IStorageDataBase.cs" />

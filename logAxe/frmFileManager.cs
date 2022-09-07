@@ -7,8 +7,6 @@ using System;
 using System.Linq;
 using System.Windows.Forms;
 using System.Collections.Generic;
-//using logAxeEngine.Common;
-//using logAxeEngine.Interfaces;
 
 using logAxeCommon;
 
@@ -57,15 +55,15 @@ namespace logAxe
             }
          }
          
-         string preFixDate = ViewCommon.GetConfig().PrefixDate ? $"{DateTime.Now:yyyyMMddHHmmss}" : "";
-         saveFileBox.FileName = $"{ViewCommon.GetConfig().LogExportPrefix}{preFixDate}.zip";
+         string preFixDate = ViewCommon.ConfigOfSystem.PrefixDate ? $"{DateTime.Now:yyyyMMddHHmmss}" : "";
+         saveFileBox.FileName = $"{ViewCommon.ConfigOfSystem.LogExportPrefix}{preFixDate}.zip";
 
          if (saveFileBox.ShowDialog() == DialogResult.OK)
          {
             //progressBar.Visible = true;
             //progressBar.Maximum = lst.Count;
             //TODO : now we need to send the index of the files only !            
-            ViewCommon.ExportFiles(lst.ToArray(), saveFileBox.FileName);
+            ViewCommon.ExportFiles(WebFrameWork.CMD_PUT_ALL_VIEW_UPDATE,  lst.ToArray(), saveFileBox.FileName);
          }
 
       }
@@ -82,11 +80,11 @@ namespace logAxe
 
       private void btnImportFile_Click(object sender, EventArgs e)
       {
-         // TODO : easy peasy
-         //if (openFileDialog.ShowDialog() == DialogResult.OK)
-         //{
-         //   ViewCommon.Engine.AddFiles(openFileDialog.FileNames.ToArray(), processAsync: true);
-         //}
+         
+         if (openFileDialog.ShowDialog() == DialogResult.OK)
+         {
+            ViewCommon.AddFiles(WebFrameWork.CMD_PUT_ALL_VIEW_UPDATE, openFileDialog.FileNames.ToArray());
+         }
       }
    }
 }

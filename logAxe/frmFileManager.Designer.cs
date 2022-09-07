@@ -48,7 +48,7 @@
          this.lstBoxFileNames.Location = new System.Drawing.Point(12, 29);
          this.lstBoxFileNames.Name = "lstBoxFileNames";
          this.lstBoxFileNames.SelectionMode = System.Windows.Forms.SelectionMode.MultiExtended;
-         this.lstBoxFileNames.Size = new System.Drawing.Size(861, 324);
+         this.lstBoxFileNames.Size = new System.Drawing.Size(861, 308);
          this.lstBoxFileNames.TabIndex = 0;
          this.lstBoxFileNames.SelectedIndexChanged += new System.EventHandler(this.lstBoxFileNames_SelectedIndexChanged);
          // 
@@ -64,7 +64,7 @@
          // btnExport
          // 
          this.btnExport.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-         this.btnExport.Location = new System.Drawing.Point(191, 365);
+         this.btnExport.Location = new System.Drawing.Point(696, 369);
          this.btnExport.Name = "btnExport";
          this.btnExport.Size = new System.Drawing.Size(174, 34);
          this.btnExport.TabIndex = 2;
@@ -76,15 +76,15 @@
          // 
          this.progressBar.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-         this.progressBar.Location = new System.Drawing.Point(212, 12);
+         this.progressBar.Location = new System.Drawing.Point(12, 353);
          this.progressBar.Name = "progressBar";
-         this.progressBar.Size = new System.Drawing.Size(651, 10);
+         this.progressBar.Size = new System.Drawing.Size(861, 10);
          this.progressBar.TabIndex = 3;
          // 
          // btnImportFile
          // 
          this.btnImportFile.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-         this.btnImportFile.Location = new System.Drawing.Point(693, 365);
+         this.btnImportFile.Location = new System.Drawing.Point(12, 369);
          this.btnImportFile.Name = "btnImportFile";
          this.btnImportFile.Size = new System.Drawing.Size(174, 34);
          this.btnImportFile.TabIndex = 4;

@@ -42,7 +42,7 @@
          this.cntrlTextViewer1.Location = new System.Drawing.Point(0, 0);
          this.cntrlTextViewer1.Name = "cntrlTextViewer1";
          this.cntrlTextViewer1.NotepadName = null;
-         //this.cntrlTextViewer1.OnNewNotepadChange = null;
+         this.cntrlTextViewer1.OnNewNotepadChange = null;
          this.cntrlTextViewer1.Size = new System.Drawing.Size(1327, 456);
          this.cntrlTextViewer1.TabIndex = 0;
          // 
@@ -56,6 +56,7 @@
          this.Name = "frmMainWindow";
          this.Text = "logAxe 0.1";
          this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.frmMainWindow_FormClosing);
+         this.Load += new System.EventHandler(this.frmMainWindow_Load);
          this.ResumeLayout(false);
 
       }

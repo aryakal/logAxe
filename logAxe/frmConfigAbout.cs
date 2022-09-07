@@ -8,6 +8,7 @@ using System.Windows.Forms;
 //using logAxeEngine.Interfaces;
 using System.Text;
 using logAxeCommon;
+using libACommunication;
 
 namespace logAxe
 {
@@ -24,17 +25,14 @@ namespace logAxe
 
       private void frmConfiguration_Load(object sender, EventArgs e)
       {
-         _userConfig = ViewCommon.GetConfig();
+         _userConfig = ViewCommon.ConfigOfSystem;
          propertyGrid1.SelectedObject = _userConfig;
       }
 
       private void propertyGrid1_PropertyValueChanged(object s, PropertyValueChangedEventArgs e)
       {
-         //TODO review
-         //         ViewCommon.UserConfig.TableHeaderFont = ViewCommon.UserConfig.TableBodyFont;
-         //ViewCommon.SaveConfiguration();
-         //ViewCommon.BroadCastMessage(new LogAxeGenericMessage() { MessageType = LogAxeMessageEnum.NewUserConfiguration });
-         ViewCommon.SetConfig(_userConfig);
+         //TODO review         
+         ViewCommon.PostCurrentTheme(_userConfig);
       }
 
       private void ShowLicense()

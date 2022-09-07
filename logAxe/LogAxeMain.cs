@@ -27,9 +27,11 @@ namespace logAxe
          
          Application.EnableVisualStyles();
          Application.SetCompatibleTextRenderingDefault(false);         
-         ViewCommon.Init2(cmdParser.IsEnabled(cmd_show_console));
-         ViewCommon.WaitingForInitComplete.Task.Wait();
-         Application.Run(new frmMainWindow());         
+         ViewCommon.Init(cmdParser.IsEnabled(cmd_show_console));
+         //ViewCommon.WaitingForInitComplete.Task.Wait();
+         var frm = new frmMainWindow();
+         frm.SetMainWindowResponsibilities();
+         Application.Run(frm);         
          ViewCommon.DeInit();
       }
 

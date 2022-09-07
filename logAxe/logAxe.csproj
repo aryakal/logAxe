@@ -91,7 +91,9 @@
     <Compile Include="CntrlTextViewer.Designer.cs">
       <DependentUpon>CntrlTextViewer.cs</DependentUpon>
     </Compile>
+    <Compile Include="CntrlTextViewerMsg.cs" />
     <Compile Include="Communication.cs" />
+    <Compile Include="DrawSurface.cs" />
     <Compile Include="frmConfigAbout.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -122,10 +124,12 @@
     <Compile Include="frmNotepad.Designer.cs">
       <DependentUpon>frmNotepad.cs</DependentUpon>
     </Compile>
+    <Compile Include="HelperAttachFileDrop.cs" />
     <Compile Include="LogAxeMain.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TableSkeleton.cs" />
     <Compile Include="ViewCommon.cs" />
+    <Compile Include="ViewCommonNew.cs" />
     <EmbeddedResource Include="CntrlTextViewer.resx">
       <DependentUpon>CntrlTextViewer.cs</DependentUpon>
     </EmbeddedResource>

@@ -1010,39 +1010,42 @@
          // 
          this.lblAppMemSize.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
          this.lblAppMemSize.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-         this.lblAppMemSize.Location = new System.Drawing.Point(1, 42);
+         this.lblAppMemSize.Location = new System.Drawing.Point(1, 22);
          this.lblAppMemSize.Name = "lblAppMemSize";
          this.lblAppMemSize.Size = new System.Drawing.Size(100, 23);
          this.lblAppMemSize.TabIndex = 27;
          this.lblAppMemSize.Text = "999999999";
          this.lblAppMemSize.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+         this.lblAppMemSize.Visible = false;
          // 
          // label14
          // 
          this.label14.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-         this.label14.Location = new System.Drawing.Point(100, 42);
+         this.label14.Location = new System.Drawing.Point(100, 22);
          this.label14.Name = "label14";
          this.label14.Size = new System.Drawing.Size(75, 23);
          this.label14.TabIndex = 26;
          this.label14.Text = "App Size";
          this.label14.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+         this.label14.Visible = false;
          // 
          // lblFileSize
          // 
          this.lblFileSize.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
          this.lblFileSize.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-         this.lblFileSize.Location = new System.Drawing.Point(1, 22);
+         this.lblFileSize.Location = new System.Drawing.Point(1, 1);
          this.lblFileSize.Name = "lblFileSize";
          this.lblFileSize.Size = new System.Drawing.Size(100, 23);
          this.lblFileSize.TabIndex = 25;
          this.lblFileSize.Text = "999999999";
          this.lblFileSize.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+         this.lblFileSize.Visible = false;
          // 
          // lblTotalFiles
          // 
          this.lblTotalFiles.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
          this.lblTotalFiles.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-         this.lblTotalFiles.Location = new System.Drawing.Point(1, 1);
+         this.lblTotalFiles.Location = new System.Drawing.Point(1, 42);
          this.lblTotalFiles.Name = "lblTotalFiles";
          this.lblTotalFiles.Size = new System.Drawing.Size(100, 23);
          this.lblTotalFiles.TabIndex = 24;
@@ -1053,17 +1056,18 @@
          // label17
          // 
          this.label17.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-         this.label17.Location = new System.Drawing.Point(100, 22);
+         this.label17.Location = new System.Drawing.Point(100, 1);
          this.label17.Name = "label17";
          this.label17.Size = new System.Drawing.Size(75, 23);
          this.label17.TabIndex = 23;
          this.label17.Text = "File Size";
          this.label17.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+         this.label17.Visible = false;
          // 
          // label18
          // 
          this.label18.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-         this.label18.Location = new System.Drawing.Point(100, 2);
+         this.label18.Location = new System.Drawing.Point(100, 42);
          this.label18.Name = "label18";
          this.label18.Size = new System.Drawing.Size(75, 23);
          this.label18.TabIndex = 22;

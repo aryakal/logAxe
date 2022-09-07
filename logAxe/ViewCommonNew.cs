@@ -4,17 +4,21 @@
 //=====================================================================================================================
 
 using System;
+using System.IO;
 using System.Collections.Generic;
+using System.Reflection;
+using System.Windows.Forms;
+using System.Drawing;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
+
+using Newtonsoft.Json;
+using logAxeCommon;
+using libALogger;
 using libACommunication;
+using System.Diagnostics;
 
-
-namespace logAxeCommon.Interfaces
+namespace logAxe
 {
-   public interface IMessageExchanger
-   {      
-      void BroadCast(UnitMsg cmd);
-   }
+  
 }

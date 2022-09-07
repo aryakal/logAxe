@@ -23,17 +23,16 @@ using libALogger;
 
 namespace logAxe.http
 {
-   public class logAxeHttpServerProxy : IMessageReceiver, IProtoProcessorProcessClientsAdv<HttpListenerContext>
+   public class logAxeHttpServerProxy : IProtoProcessorProcessClientsAdv<HttpListenerContext>
    {
       private ILibALogger _log;
       private ILogEngine _engine;
-      private MessageExchangeHelper _messenger;
       private readonly string _appRootPath;
       private List<IFileObject> _lst = new List<IFileObject>();
       Dictionary<string, byte[]> _cachedFiles = new Dictionary<string, byte[]>();
       IDLServer _libWebServer;
       private SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
-      private bool _exitOnLastClient =  false;
+      private bool _exitOnLastClient = false;
       // private string _internalPath = "./data/";
       private string _internalPath = "../../http/data/";
       class ViewData
@@ -56,23 +55,6 @@ namespace logAxe.http
             websoketLogger: debugHttp ? Logging.GetLogger("ws") : null
             );
 
-      }
-
-      public void GetMessage(ILogAxeMessage message)
-      {
-         switch (message.MessageType)
-         {
-            case LogAxeMessageEnum.NewViewAnnouncement:
-               {
-                  foreach (var v in _viewData)
-                  {
-                     var view = v.Value;
-                     view.SetFrame(_engine.Filter(view.Filter));
-                  }
-                  _libWebServer.BroadCast(new UnitCmd("refreshView", "all", responseStatus: WebHelper.RespSuccess));
-               }
-               break;
-         }
       }
 
       public void Start()
@@ -161,7 +143,7 @@ namespace logAxe.http
 
       //            }
       //         }
-          
+
       //         else if ("files" == module)
       //         {
 
@@ -336,7 +318,7 @@ namespace logAxe.http
       //   message.Status = WebHelper.RespSuccess;
       //   return message;
       //}
-      private void SetFailed(UnitCmd message, string reason)
+      private void SetFailed(UnitMsg message, string reason)
       {
          message.Value = new Dictionary<string, object>() { { "reason", reason } };
          message.Status = WebHelper.RespFailed;
@@ -353,7 +335,8 @@ namespace logAxe.http
          }
       }
 
-      public static void Test() {
+      public static void Test()
+      {
          //var client = new WebSocketClientTest(
          //   bufferSize:4096, 
          //   logger: new WebLogProxy(new NamedLogger("ws")));
@@ -370,18 +353,17 @@ namespace logAxe.http
          throw new NotImplementedException();
       }
 
-      public UnitCmd ProcessUnitCmd(LibCommProtoMsgType msgType, IClientInfo clientInfo, UnitCmd message = null)
+      public UnitMsg ProcessUnitCmd(LibCommProtoMsgType msgType, IClientInfo clientInfo, UnitMsg message = null)
       {
          throw new NotImplementedException();
       }
    }
 
 
-   public class logAxePipeServer : IMessageReceiver, IProtoProcessorProcessClients, IMessageExchanger
+   public class logAxePipeServer : IProtoProcessorProcessClients, IMessageExchanger
    {
       private ILibALogger _logger;
       private ILogEngine _engine;
-      private MessageExchangeHelper _messenger;
       private readonly string _appRootPath;
       CommonFunctionality _commonFunctionality;
       private List<IFileObject> _lst = new List<IFileObject>();
@@ -389,165 +371,193 @@ namespace logAxe.http
       //Dictionary<string, >
       IDLServer _libPipeServer;
       private SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
-      private bool _exitOnLastClient = false;      
+      private bool _exitOnLastClient = false;
+      CancellationTokenSource _cts;
       class ViewData
       {
          public LogFrame Frame { get; set; } = null;
          public TermFilter Filter { get; set; } = new TermFilter();
       }
       Dictionary<string, WebFrame> _viewData = new Dictionary<string, WebFrame>();
-      public logAxePipeServer(ILibALogger logger, ILogEngine engine, string pipeName, CommonFunctionality commonFunctionality)
+      public logAxePipeServer(ILibALogger logger, ILogEngine engine, string pipeName, CommonFunctionality commonFunctionality, bool exitOnLastClient)
       {
          _logger = logger;
          _commonFunctionality = commonFunctionality;
          _engine = engine;
          _engine.RegisterMessageExchanger(this);
+         _exitOnLastClient = exitOnLastClient;
          // _messenger = new MessageExchangeHelper(_engine.MessageBroker, this);
          _libPipeServer = new PipeServer(
             logger: Logging.GetLogger("srv"),
             processor: this,
             pipeName
-            ); 
+            );
       }
 
-      public void GetMessage(ILogAxeMessage message)
-      {
-         switch (message.MessageType)
-         {
-            case LogAxeMessageEnum.NewViewAnnouncement:
-               {
-                  foreach (var v in _viewData)
-                  {
-                     var view = v.Value;
-                     view.SetFrame(_engine.Filter(view.Filter));
-                  }
-                  _libPipeServer.BroadCast(new UnitCmd("refreshView", "all", responseStatus: WebHelper.RespSuccess));
-               }
-               break;
-         }
-      }
 
       public void Start()
       {
-         CancellationTokenSource cts = new CancellationTokenSource();
-         _libPipeServer.RunForever(cts.Token);
+         if (_exitOnLastClient)
+         {
+            _logger?.Info("will close when last client closes");
+         }
+         _cts = new CancellationTokenSource();
+         _libPipeServer.RunForever(_cts.Token);
+         _logger?.Debug("Closing");
       }
 
-      public UnitCmd ProcessUnitCmd(LibCommProtoMsgType msgType, IClientInfo clientInfo, UnitCmd message = null)
+      public UnitMsg ProcessUnitCmd(LibCommProtoMsgType msgType, IClientInfo clientInfo, UnitMsg message = null)
       {
          try
          {
-            
+
             if (msgType != LibCommProtoMsgType.Msg || message == null)
                return null;
             //if(message.OpCode != WebFrameWork.CMD_GET_LINES)
             //   _logger?.Debug($"processing, {message.OpCode}");
             switch (message.OpCode)
-            {  
-               case WebFrameWork.CMD_SET_REGISTER:
-                  {  
+            {
+               case WebFrameWork.CMD_PUT_REGISTER:
+                  {
                      message.Status = WebHelper.RespSuccess;
                      var registration = Utils.FromJson<RegisterClient>(message.Value.ToString());
-                     _logger?.Debug($"{nameof(WebFrameWork.CMD_SET_REGISTER)}, already registered: {_viewData.ContainsKey(registration.Name)}, client: {registration.Name}");
+                     _logger?.Debug($"{nameof(WebFrameWork.CMD_PUT_REGISTER)}, already registered: {_viewData.ContainsKey(registration.Name)}, client: {registration.Name}");
                      if (!_viewData.ContainsKey(registration.Name))
-                     {  
+                     {
                         _viewData[registration.Name] = new WebFrame(registration.Name, _engine.GetMasterFrame());
                      }
 
                      //return GetLogLines(registration.Name, 0, 10);
-                     return  new UnitCmd(WebFrameWork.CMD_SET_INFO, message.UID, _viewData[message.UID], responseStatus: WebHelper.RespSuccess) ;
+                     return new UnitMsg(WebFrameWork.CMD_PUT_INFO, message.UID, _viewData[message.UID], responseStatus: WebHelper.RespSuccess);
                   }
-               case WebFrameWork.CMD_SET_FILES:
+               case WebFrameWork.CMD_PUT_FILES:
                   {
                      var infoOfDiskFiles = message.GetData<UnitCmdAddDiskFiles>();
-                     _logger?.Debug($"{nameof(WebFrameWork.CMD_SET_FILES)}, files {infoOfDiskFiles.FilePaths.Length}");                     
+                     _logger?.Debug($"{nameof(WebFrameWork.CMD_PUT_FILES)}, files {infoOfDiskFiles.FilePaths.Length}");
                      _engine.AddFiles(paths: infoOfDiskFiles.FilePaths, processAsync: true, addFileAsync: true);
                      break;
                   }
-               case WebFrameWork.CMD_BST_NEW_VIEW:
-                  {  
-                     _logger?.Debug($"{nameof(WebFrameWork.CMD_BST_NEW_VIEW)}, setting new view on {message.UID}, getting master frame");
-                     _viewData[message.UID].SetFrame(_engine.GetMasterFrame());
-                     return new UnitCmd(WebFrameWork.CMD_SET_INFO, message.UID, _viewData[message.UID], responseStatus: WebHelper.RespSuccess);
-                  }
-               case WebFrameWork.CMD_SET_INFO:
+               case WebFrameWork.CMD_PUT_NEW_VIEW:
                   {
-                     _logger?.Debug($"{nameof(WebFrameWork.CMD_SET_INFO)}, setting info.");
-                     return new UnitCmd(WebFrameWork.CMD_SET_INFO, message.UID, _viewData[message.UID], responseStatus: WebHelper.RespSuccess);
+                     _logger?.Debug($"{nameof(WebFrameWork.CMD_PUT_NEW_VIEW)}, setting new view on {message.UID}, getting master frame");
+                     _viewData[message.UID].SetFrame(_engine.GetMasterFrame());
+                     return new UnitMsg(WebFrameWork.CMD_PUT_INFO, message.UID, _viewData[message.UID], responseStatus: WebHelper.RespSuccess);
+                  }
+               case WebFrameWork.CMD_PUT_INFO:
+                  {
+                     _logger?.Debug($"{nameof(WebFrameWork.CMD_PUT_INFO)}, setting info.");
+                     return new UnitMsg(WebFrameWork.CMD_PUT_INFO, message.UID, _viewData[message.UID], responseStatus: WebHelper.RespSuccess);
                   }
                case WebFrameWork.CMD_GET_LINES:
                   {
                      var lineInfo = message.GetData<UnitCmdGetLines>();
-                     return GetLogLines(message.UID, lineInfo.StartLine, lineInfo.Length);                     
+                     return GetLogLines(message.UID, lineInfo.StartLine, lineInfo.Length);
                   }
                case WebFrameWork.CMD_SET_FILTER:
                   {
                      var filter = message.GetData<TermFilter>();
                      _logger?.Debug($"{nameof(WebFrameWork.CMD_SET_FILTER)}, {filter}");
                      _viewData[message.UID].SetFrameAndFilter(_engine.Filter(filter), filter);
-                     return new UnitCmd(WebFrameWork.CMD_SET_INFO, message.UID, _viewData[message.UID], responseStatus: WebHelper.RespSuccess);
+                     return new UnitMsg(WebFrameWork.CMD_PUT_INFO, message.UID, _viewData[message.UID], responseStatus: WebHelper.RespSuccess);
                   }
-               case WebFrameWork.CMD_SET_CLEAR:
+               case WebFrameWork.CMD_PUT_CLEAR:
                   {
-                     _logger?.Debug($"{nameof(WebFrameWork.CMD_SET_CLEAR)}, clear all");
-                     _engine.Clear();
-                     BroadCast(new UnitCmd(opCode: WebFrameWork.CMD_BST_NEW_VIEW, name: WebFrameWork.CLIENT_BST_ALL));
-                     return null;
+                     _logger?.Debug($"{nameof(WebFrameWork.CMD_PUT_CLEAR)}, clear all");
+                     _engine.Clear();                     
+                     return new UnitMsg(opCode: WebFrameWork.CMD_PUT_NEW_VIEW, name: WebFrameWork.CLIENT_BST_ALL);
                   }
-               case WebFrameWork.CMD_GET_FILTER_THEME_INFO:
+
+               //case WebFrameWork.CMD_GET_FILTER_THEME_INFO:
+               //   {
+               //      _logger?.Debug($"{nameof(WebFrameWork.CMD_GET_FILTER_THEME_INFO)}, ");
+
+               //      _libPipeServer.Send(clientInfo, new UnitMsg(WebFrameWork.CMD_PUT_FILTER_THEME_INFO, message.UID,
+               //         new UnitCmdGetThemeFilterVersionInfo()
+               //         {
+               //            VersionInfo = _commonFunctionality.GetVersionString(),
+               //            ListFilterNames = _commonFunctionality.GetFilters(),
+               //            ListThemeNames = _commonFunctionality.GetThemes(),
+               //            CurrentConfigUI = _commonFunctionality.GetTheme(CommonFunctionality.UserDefaultThemeName)
+               //         }, responseStatus: WebHelper.RespSuccess));
+               //      BroadCast(new UnitMsg(opCode: WebFrameWork.CMD_BST_NEW_THEME, name: WebFrameWork.CLIENT_BST_ALL));
+
+               //      return null;
+               //   }
+               case WebFrameWork.CMD_POST_CONFIG:
                   {
-                     _logger?.Debug($"{nameof(WebFrameWork.CMD_GET_FILTER_THEME_INFO)}, ");
-                     _libPipeServer.Send(clientInfo, new UnitCmd(WebFrameWork.CMD_SET_FILTER_THEME_INFO, message.UID,
-                        new UnitCmdGetThemeFilterVersionInfo()
-                        {
-                           VersionInfo = _commonFunctionality.GetVersionString(),
-                           ListFilterNames = _commonFunctionality.GetFilters(),
-                           ListThemeNames = _commonFunctionality.GetThemes(),
-                           CurrentConfigUI = _commonFunctionality.GetTheme(CommonFunctionality.UserDefaultThemeName)
-                        }, responseStatus: WebHelper.RespSuccess));
-                     BroadCast(new UnitCmd(opCode: WebFrameWork.CMD_BST_NEW_THEME, name: WebFrameWork.CLIENT_BST_ALL));
-                     return null;
+                     _logger?.Debug($"{nameof(WebFrameWork.CMD_POST_CONFIG)}, ");
+                     var config = message.GetData<ConfigUI>();
+                     _commonFunctionality.SaveTheme(config);                     
+                     return new UnitMsg(opCode: WebFrameWork.CMD_GET_CONFIG_CURRENT, name: WebFrameWork.CLIENT_BST_ALL, value: _commonFunctionality.GetTheme(CommonFunctionality.UserDefaultThemeName));
                   }
-               case WebFrameWork.CMD_SAVE_CONFIG:
-                  _logger?.Debug($"{nameof(WebFrameWork.CMD_SAVE_CONFIG)}, ");
-                  var config = message.GetData<ConfigUI>();
-                  _commonFunctionality.SaveTheme(config);
-                  _libPipeServer.Send(clientInfo, new UnitCmd(WebFrameWork.CMD_SET_FILTER_THEME_INFO, message.UID,
-                        new UnitCmdGetThemeFilterVersionInfo()
-                        {
-                           VersionInfo = _commonFunctionality.GetVersionString(),
-                           ListFilterNames = _commonFunctionality.GetFilters(),
-                           ListThemeNames = _commonFunctionality.GetThemes(),
-                           CurrentConfigUI = _commonFunctionality.GetTheme(CommonFunctionality.UserDefaultThemeName)
-                        }, responseStatus: WebHelper.RespSuccess));                  BroadCast(new UnitCmd(opCode: WebFrameWork.CMD_BST_NEW_THEME, name: WebFrameWork.CLIENT_BST_ALL));
-                  return null;
-               case WebFrameWork.CMD_CLIENT_BST:
-                  _logger?.Debug($"{nameof(WebFrameWork.CMD_CLIENT_BST)}, broadcast request.");
-                  var msg = message.GetData<UnitCmd>();
+
+               //   _libPipeServer.Send(clientInfo, new UnitMsg(WebFrameWork.CMD_PUT_FILTER_THEME_INFO, message.UID,
+               //         new UnitCmdGetThemeFilterVersionInfo()
+               //         {
+               //            VersionInfo = _commonFunctionality.GetVersionString(),
+               //            ListFilterNames = _commonFunctionality.GetFilters(),
+               //            ListThemeNames = _commonFunctionality.GetThemes(),
+               //            CurrentConfigUI = _commonFunctionality.GetTheme(CommonFunctionality.UserDefaultThemeName)
+               //         }, responseStatus: WebHelper.RespSuccess));                  
+               //   BroadCast(new UnitMsg(opCode: WebFrameWork.CMD_BST_NEW_THEME, name: WebFrameWork.CLIENT_BST_ALL));
+
+               //return null;
+               case WebFrameWork.CMD_PUT_CLIENT_BST:
+                  _logger?.Debug($"{nameof(WebFrameWork.CMD_PUT_CLIENT_BST)}, broadcast request.");
+                  var msg = message.GetData<UnitMsg>();
                   BroadCast(msg);
                   return null;
 
-               case WebFrameWork.CMD_SAVE_FILTER:
+               case WebFrameWork.CMD_POST_FILTER_SAVE:
                   {
-                     _logger?.Debug($"{nameof(WebFrameWork.CMD_SAVE_FILTER)}, broadcast request.");
+                     _logger?.Debug($"{nameof(WebFrameWork.CMD_POST_FILTER_SAVE)}, save filter.");
                      var filter = message.GetData<TermFilter>();
-                     _commonFunctionality.SaveFilter(filter.Name, filter);                     
-                     BroadCast(new UnitCmd(opCode: WebFrameWork.CMD_BST_NEW_THEME, name: WebFrameWork.CLIENT_BST_ALL));
-                     break;
+                     _commonFunctionality.SaveFilter(filter.Name, filter);
+                     return new UnitMsg(opCode: WebFrameWork.CMD_GET_FILE_LIST, name: WebFrameWork.CLIENT_BST_ALL, value: _commonFunctionality.GetFilters());
                   }
 
                case WebFrameWork.CMD_GET_FILE_LIST:
-                  {  
-                     return new UnitCmd(WebFrameWork.CMD_SET_FILE_LIST, message.UID, _engine.GetAllLogFileInfo(), responseStatus: WebHelper.RespSuccess);
-                  }
-               case WebFrameWork.CMD_EXPORT_FILES: 
                   {
-                     _logger?.Debug($"{nameof(WebFrameWork.CMD_EXPORT_FILES)}, export file.");
+                     return new UnitMsg(WebFrameWork.CMD_PUT_FILE_LIST, message.UID, _engine.GetAllLogFileInfo(), responseStatus: WebHelper.RespSuccess);
+                  }
+               case WebFrameWork.CMD_GET_EXPORT_FILES:
+                  {
+                     _logger?.Debug($"{nameof(WebFrameWork.CMD_GET_EXPORT_FILES)}, export file.");
                      var exportInfo = message.GetData<UnitCmdExportFile>();
                      _engine.ExportFiles(exportInfo.Files, exportInfo.ExportFileName);
                      break;
                   }
+               case WebFrameWork.CMD_GET_FILE_APP_MEM_INFO:
+                  {
+                     return new UnitMsg(WebFrameWork.CMD_PUT_FILE_APP_MEM_INFO, message.UID, value: _engine.GetFileAppMemInfo(), responseStatus: WebHelper.RespSuccess);
+                  }
 
+               case WebFrameWork.CMD_GET_FILTER_DETAILS:
+                  {
+                     var filter = message.GetData<TermFilter>();
+                     filter = _commonFunctionality.GetFilter(filter.Name);
+                     return new UnitMsg(WebFrameWork.CMD_PUT_FILTER_DETAILS, message.UID, value: filter, responseStatus: WebHelper.RespSuccess);
+                  }
+               case WebFrameWork.CMD_DEL_FILTER_DETAIL:
+                  {
+                     var filter = message.GetData<TermFilter>();
+                     filter = _commonFunctionality.GetFilter(filter.Name);
+                     return new UnitMsg(WebFrameWork.CMD_PUT_FILTER_DETAILS, message.UID, value: filter, responseStatus: WebHelper.RespSuccess);
+                  }
+               case WebFrameWork.CMD_GET_CONFIG_CURRENT:
+                  {
+                     _logger?.Debug($"{nameof(WebFrameWork.CMD_GET_CONFIG_CURRENT)}, get config request.");
+                     message.Value = _commonFunctionality.GetTheme(CommonFunctionality.UserDefaultThemeName);
+                     message.Status = WebHelper.RespSuccess;
+                     return message;
+                  }
+               case WebFrameWork.CMD_GET_FILTER_LIST:
+                  {
+                     _logger?.Debug($"{nameof(WebFrameWork.CMD_GET_FILTER_LIST)}, get full filter list.");
+                     message.Value = _commonFunctionality.GetFilters();
+                     message.Status = WebHelper.RespSuccess;
+                     return message;
+                  }
                default:
                   //message.Value = null;
                   //message.Status = WebHelper.RespFailed;
@@ -573,10 +583,11 @@ namespace logAxe.http
          return null;
       }
 
-      private UnitCmd GetLogLines(string uid, int startLine, int length) {
+      private UnitMsg GetLogLines(string uid, int startLine, int length)
+      {
          var lines = new WebLogLines(uid, length);
          lines.StartLogLine = startLine;
-         for (int ndx = startLine; ndx < (startLine+ length); ndx++)
+         for (int ndx = startLine; ndx < (startLine + length); ndx++)
          {
             if (ndx >= _viewData[uid].TotalLogLines)
             {
@@ -584,24 +595,13 @@ namespace logAxe.http
             }
             lines.LogLines.Add(_engine.GetLogLine(_viewData[uid].Frame.TranslateLine(ndx)));
          }
-         return new UnitCmd(WebFrameWork.CMD_SET_LINES, uid, lines, responseStatus: WebHelper.RespSuccess);
+         return new UnitMsg(WebFrameWork.CMD_PUT_LINES, uid, lines, responseStatus: WebHelper.RespSuccess);
       }
 
-      private void SetFailed(UnitCmd message, string reason)
+      private void SetFailed(UnitMsg message, string reason)
       {
          message.Value = new Dictionary<string, object>() { { "reason", reason } };
          message.Status = WebHelper.RespFailed;
-      }
-
-      public void ProcessTotalClients(int totalClients)
-      {
-         if (totalClients == 0)
-         {
-            _logger?.Info($"Detected no clients connected, signal to close. exitOnLastClient {_exitOnLastClient}");
-            //TODO : enable the ability to close a server.
-            //if(_exitOnLastClient)
-            //   _libWebServer.Stop();
-         }
       }
 
       public static void Test()
@@ -619,16 +619,22 @@ namespace logAxe.http
 
       public void TotalClients(long noOfClients)
       {
-         _logger?.Error("Not handlering TotalCliets");
+         _logger?.Error($"total clients {noOfClients}");
+         if (_exitOnLastClient && noOfClients == 0)
+         {
+            _logger?.Info("Closing all operations");
+            _cts.Cancel();
+         }
       }
 
-      public void BroadCast(UnitCmd cmd)
+      public void BroadCast(UnitMsg cmd)
       {
-         if (cmd == null) {
+         if (cmd == null)
+         {
             _logger?.Error("Trying to send null");
             return;
          }
-         if (cmd.OpCode == WebFrameWork.CMD_BST_NEW_VIEW)
+         if (cmd.OpCode == WebFrameWork.CMD_PUT_NEW_VIEW)
          {
             foreach (var view in _viewData)
             {

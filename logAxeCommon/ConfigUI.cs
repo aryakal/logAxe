@@ -3,15 +3,14 @@
 //--------------------------------------------------------------------------------------------------------------------
 //=====================================================================================================================
 
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
-using Newtonsoft.Json;
 
 namespace logAxeCommon
 {
    public class ConfigUI
    {
+      public string Version { get; set; } = "0.2";
       public string Name { get; set; } = "default";
       public bool ShowTableHeader { get; set; } = true;
       public bool ShowLineNo { get; set; } = true;
@@ -29,17 +28,19 @@ namespace logAxeCommon
       public Color GlobalLineSelected { get; set; } = Color.FromArgb(30, Color.Green);
       public Color TableLineSelectedBkg { get; set; } = Color.FromArgb(30, Color.Blue);
       public Color TableSearchLinesBkg { get; set; } = Color.FromArgb(30, Color.Black);
-      public Color ScrollBarColor{ get; set; } = Color.FromArgb(30, Color.Black);
+      public Color ScrollBarColor { get; set; } = Color.FromArgb(30, Color.Black);
       [Browsable(false)]
       public Font TableHeaderFont { get; set; } = new Font("Consolas", 9.2F);
       public Font TableBodyFont { get; set; } = new Font("Consolas", 9.2F);
-      public float Column0_LineOffset { get; set; } = 0;      
+      public float Column0_LineOffset { get; set; } = 0;
       public float Column1_TimeStamp { get; set; } = 100;
       public string Column1TimeStampFormat { get; set; } = "yy-MM-dd HH:mm:ss.fff";
       public bool DebugUI { get; set; } = false;
       public string LogExportPrefix { get; set; } = "logs-";
-      public bool PrefixDate { get; set; } = true;
       public bool FeatureShowCategoryWithMsg { get; set; } = true;
-   }
+      public bool PrefixDate { get; set; } = true;
 
+      private bool featureShowCategoryWithMsg = true;
+      
+   }
 }

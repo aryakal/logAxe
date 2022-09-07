@@ -21,6 +21,8 @@ namespace logAxeEngine.Interfaces
       string GetLicenseInfo();      
       FileParseProgressEvent GetStartInfo();
 
+      UnitCmdFileAppMemInfo GetFileAppMemInfo();
+
       void RegisterMessageExchanger(IMessageExchanger exchanger);
    }
 }

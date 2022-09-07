@@ -248,7 +248,7 @@ namespace logAxe
       }
       public void Resize(SizeF size)
       {
-         var config = ViewCommon.GetConfig();
+         var config = ViewCommon.ConfigOfSystem;
 
          ShowTableHeader = config.ShowTableHeader;
          //this["LineNo"].Visible = config.ShowLineNo;

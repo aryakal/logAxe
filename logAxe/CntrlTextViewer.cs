@@ -30,7 +30,7 @@ using libACommunication;
 namespace logAxe
 {
    public partial class CntrlTextViewer : UserControl
-   {   
+   { 
       internal class MouseState
       {
          public bool IsMouseDown { get; set; }
@@ -46,7 +46,7 @@ namespace logAxe
       private DrawSurface _newCanvas = new DrawSurface();
 
       
-      private frmFileManager _fld;
+      //private frmFileManager _fld;
       private frmLineData _lineInfoDlg = new frmLineData();
       private CustomMoveCntrl _moveFilterBox;
 
@@ -77,6 +77,7 @@ namespace logAxe
       public string _filterMessage = "";
 
       public Action<CntrlTextViewerMsg> OnNewNotepadChange { get; set; }
+      public bool IsMainWindow { get; set; }
       public string FilterMessage
       {
          get
@@ -93,6 +94,7 @@ namespace logAxe
       private SemaphoreSlim _lockDraw = new SemaphoreSlim(1, 1);
       private System.Windows.Forms.Timer _timer;
       private System.Windows.Forms.Timer _timerBackgroundDraw;
+      private System.Windows.Forms.Timer _timerUpdateInfo;
 
       public CntrlTextViewer()
       {
@@ -113,7 +115,7 @@ namespace logAxe
 
          if (ViewCommon.Channel != null)
          {
-            _userConfig = ViewCommon.GetConfig();
+            _userConfig = ViewCommon.ConfigOfSystem;
             ViewCommon.Channel.RegisterClient(UniqueId, DoWork);
             new HelperAttachFileDrop(this);
             new HelperAttachFileDrop(masterPanel);
@@ -126,37 +128,45 @@ namespace logAxe
 
             _timerBackgroundDraw = new System.Windows.Forms.Timer();
             _timerBackgroundDraw.Interval = 50;
-            _timerBackgroundDraw.Tick += DoWork_Draw3;
+            _timerBackgroundDraw.Tick += (sender, args) => DoWork_Draw3(); 
             _timerBackgroundDraw.Start();
-         }
-         
-         //TODO : load filters.
-         //LoadFilter();
-         
 
+            ViewCommon.GetCurrentTheme(viewName: UniqueId);
+            ViewCommon.GetFilterList(viewName: UniqueId);
+
+            
+         }
       }
+
+      public void SetAsMainWindow()
+      {
+         IsMainWindow = true;
+         ViewCommon.GetCurrentTheme(viewName: UniqueId);
+      }
+
+      public void EnableFileAppInfo()
+      {
+         lblFileSize.Invoke(new Action(() =>
+         {
+            lblFileSize.Visible = true;
+            lblAppMemSize.Visible = true;
+            label17.Visible = true;
+            label14.Visible = true;
+         }));
+
+         ViewCommon.GetFileAppMemInfo(UniqueId);
+         _timerUpdateInfo = new System.Windows.Forms.Timer();
+         _timerUpdateInfo.Interval = 5000;
+         _timerUpdateInfo.Tick += (sender, args) => ViewCommon.GetFileAppMemInfo(UniqueId);
+         _timerUpdateInfo.Start();
+      }
+
+
       public readonly string FilterBoxLbl = "Filter log lines ( + Include - Exclude)";
-      public void FillCircle(Brush brush, float radius, PointF point)
-      {
-         _newCanvas.gc.FillEllipse(brush,
-             point.X - radius,
-             point.Y - radius,
-             radius * 2,
-             radius * 2);
-      }
-      public void DrawCircle(Brush brush, float radius, PointF point)
-      {
-         _newCanvas.gc.FillEllipse(brush,
-             point.X - radius,
-             point.Y - radius,
-             radius * 2,
-             radius * 2);
-      }
-      public RectangleF GetRectF(float x, float y, float size)
+      private RectangleF GetRectF(float x, float y, float size)
       {
          return new RectangleF(x - size, y - size, size * 2, size * 2);
       }
-
       protected override bool ProcessCmdKey(ref System.Windows.Forms.Message msg, Keys keyData)
       {
          switch (keyData)
@@ -248,13 +258,11 @@ namespace logAxe
          }
          return true;
       }
-
       protected override void OnHandleDestroyed(EventArgs e)
       {
          _moveFilterBox.Release();
          //_msgHelper?.Unregister();
       }
-
       private void MoveLine(int delta)
       {
          if (_table.MoveByLineDelta(delta))
@@ -758,7 +766,7 @@ namespace logAxe
                       filter.FilterTraces[0] ? System.Drawing.FontStyle.Regular : System.Drawing.FontStyle.Strikeout,
                       System.Drawing.GraphicsUnit.Point,
                       ((byte)(0)));
-         ViewCommon.Channel.SendMsg(new UnitCmd(
+         ViewCommon.Channel.SendMsg(new UnitMsg(
             opCode: WebFrameWork.CMD_SET_FILTER, 
             name: UniqueId, 
             value: filter)
@@ -801,48 +809,82 @@ namespace logAxe
       {
          ViewCommon.ShowPropertyScreen();
       }
-      private void DoWork(UnitCmd command)
+      private void DoWork(UnitMsg message)
       {
 
          //f (command.OpCode != WebFrameWork.CMD_GET_LINES)
-         _logger?.Debug($"processing, {command.OpCode}");
+         _logger?.Debug($"processing, {message.OpCode}");
             
 
-         switch (command.OpCode)
+         switch (message.OpCode)
          {
-            case WebFrameWork.CMD_SET_INFO:               
-               var frame = command.GetData<WebFrame>();
+            case WebFrameWork.CMD_PUT_INFO:               
+               var frame = message.GetData<WebFrame>();
                _table.SetViewFrame(frame);
                if (_table.ViewFrame.TotalLogLines > 0)
                {
                   _table.CurrentDataLine = 0;
                   _table.WebLogLinesData = null;
-                  ViewCommon.Channel.SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_GET_LINES, name: UniqueId, value: new UnitCmdGetLines() { StartLine = _table.CurrentDataLine, Length = _table.RowsPerPage }));                  
+                  ViewCommon.Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_GET_LINES, name: UniqueId, value: new UnitCmdGetLines() { StartLine = _table.CurrentDataLine, Length = _table.RowsPerPage }));                  
                }
                DoWork_UpdateStatInfo();
                break;
-            case WebFrameWork.CMD_SET_LINES:               
-               var val = command.GetData<WebLogLines>();
+            case WebFrameWork.CMD_PUT_LINES:               
+               var val = message.GetData<WebLogLines>();
                if (val.LogLines.Count <= _table.RowsPerPage) { 
                   DoWork_Draw2(WebFrameWork.CMD_GET_LINES, val);
                }
                break;
-            case WebFrameWork.CMD_BST_NEW_VIEW:               
+            case WebFrameWork.CMD_PUT_NEW_VIEW:               
                //Now we need to get the view from the server.
-               ViewCommon.Channel.SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_BST_NEW_VIEW, name: UniqueId));
-               ViewCommon.Channel.SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_GET_LINES, name: UniqueId, value: new UnitCmdGetLines() { StartLine = _table.CurrentDataLine, Length = _table.RowsPerPage }));
+               ViewCommon.Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_PUT_NEW_VIEW, name: UniqueId));
+               ViewCommon.Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_GET_LINES, name: UniqueId, value: new UnitCmdGetLines() { StartLine = _table.CurrentDataLine, Length = _table.RowsPerPage }));
                break;
-            case WebFrameWork.CMD_BST_NEW_THEME:
-               _userConfig = ViewCommon.GetConfig();
+            case WebFrameWork.CMD_PUT_ALL_FILTER_UPDATE:               
                OnNewNotepadChange?.Invoke(CntrlTextViewerMsg.SetTitle);
-               QueueDrawRequest("on new theme");
-               lstSavedFilter.Invoke(new Action(() => {
-                  LoadFilter();
-               }));
-               
+               QueueDrawRequest("on new theme");                           
                break;
+            case WebFrameWork.CMD_PUT_FILE_APP_MEM_INFO:
+               {
+                  var fileAppMemInfo = message.GetData<UnitCmdFileAppMemInfo>();
+                  lblFileSize.Invoke(new Action(() =>
+                  {
+                     lblFileSize.Text = Utils.GetHumanSize(fileAppMemInfo.FileSize, showInt:false);
+                     lblAppMemSize.Text = Utils.GetHumanSize(fileAppMemInfo.AppSize);
+                  }));
+                }
+               break;
+            case WebFrameWork.CMD_PUT_FILTER_DETAILS:
+               {
+                  CurrentFilter = message.GetData<TermFilter>();
+                  btnSavedFilterApply.Invoke(new Action(() => { 
+                     HelperSetFilter(CurrentFilter, true);
+                  }));
+                  break;
+               }
+            case WebFrameWork.CMD_GET_CONFIG_CURRENT:
+               {
+                  _userConfig = message.GetData<ConfigUI>();
+                  if (IsMainWindow)
+                  {
+                     ViewCommon.ConfigOfSystem = _userConfig;
+                  }
+                  _drawRequired = true;
+                  _table.Dirty = true;
+                  QueueDrawRequest("on new theme");
+                  break;
+               }
+            case WebFrameWork.CMD_GET_FILTER_LIST:
+               {
+                  var filters = message.GetData<string[]>();
+                  lstSavedFilter.Invoke(new Action(() => {
+                     LoadFilter(filters);
+                  }));
+                  break;
+
+               }
             default:
-               _logger?.Error($"No handling for {command.OpCode}");
+               _logger?.Error($"No handling for {message.OpCode}");
                break;
          }
       }
@@ -880,7 +922,8 @@ namespace logAxe
             _lockDraw.Release();
          }
       }      
-      private void DoWork_Draw3(object sender, EventArgs e)
+      //TODO : rename to draw.
+      private void DoWork_Draw3()
       {
          
          try
@@ -1165,6 +1208,7 @@ namespace logAxe
              new SolidBrush(color),
              table.CirclePoint);
       }
+
       private void AddMenuItem()
       {
          copyToNotepadToolStripMenuItem.DropDownItems.Clear();
@@ -1188,283 +1232,12 @@ namespace logAxe
                _table.Resize(_newCanvas.bmp.Size);               
             }
             //_logger?.Debug($"QueueDrawRequest: {msg}");
-            ViewCommon.Channel.SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_GET_LINES, name: UniqueId, value: new UnitCmdGetLines() { StartLine = _table.CurrentDataLine, Length = _table.RowsPerPage }));
+            ViewCommon.Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_GET_LINES, name: UniqueId, value: new UnitCmdGetLines() { StartLine = _table.CurrentDataLine, Length = _table.RowsPerPage }));
          }
          finally {
             _lockDraw.Release();
          }
-      }      
-      //private void DoWork_Draw()
-      //{
-      //   try
-      //   {
-      //      if (_newCanvas.SetSize(masterPanel.Size) || _table.Dirty)
-      //      {
-      //         _table.Resize(_newCanvas.bmp.Size);
-      //         _table.Dirty = false;
-      //      }
-
-      //      _newCanvas.gc.Clear(_userConfig.BackgroundColor);
-
-      //      //Draw table
-
-      //      //if (_userConfig.ShowTableHeader)
-      //      //{
-      //      //   //var rect = new RectangleF(
-      //      //   //    _table.Location.X,
-      //      //   //    _table.Location.Y,
-      //      //   //    _table.Size.Width - (_table.ScrollBarOffsetFromRight + 30),
-      //      //   //    _table.RowsHeight);
-
-      //      //   //TODO : remove this feature.
-      //      //   string addTextToMsg = "";
-      //      //   //string addTextToMsg =
-      //      //   //    _userConfig.DebugUI ?
-      //      //   //    $"-{DateTime.Now.ToString(_userConfig.Column1TimeStampFormat)} - {Interlocked.Read(ref _totalDraws)} - {drawType}" :
-      //      //   //    "";
-
-      //      //   //var (enbled, timeDiff) = _table.GetSelectedLineDiff();
-      //      //   //if (enbled)
-      //      //   //{
-      //      //   //   addTextToMsg += $"- {timeDiff}";
-      //      //   //}
-
-      //      //   for (int ndx = 0; ndx < _table.TotalColumns; ndx++)
-      //      //   {
-      //      //      if (string.IsNullOrEmpty(_table[ndx].DisplayName) || !_table[ndx].Visible)
-      //      //         continue;
-      //      //      switch (_table[ndx].DisplayName)
-      //      //      {
-      //      //         default:
-      //      //            _newCanvas.gc.DrawString(
-      //      //                _table[ndx].DisplayName,
-      //      //                _userConfig.TableHeaderFont,
-      //      //                new SolidBrush(_userConfig.TableHeaderForeGroundColor),
-      //      //                new PointF(
-      //      //                    _table.Location.X + _table[ndx].StartLoc,
-      //      //                    _table.Location.Y + _table.OffsetStringData)
-      //      //                );
-      //      //            break;
-
-      //      //         case "Message":
-      //      //            _newCanvas.gc.DrawString(
-      //      //                $"{_table[ndx].DisplayName}{addTextToMsg}",
-      //      //                _userConfig.TableHeaderFont,
-      //      //                new SolidBrush(_userConfig.TableHeaderForeGroundColor),
-      //      //                new PointF(
-      //      //                    _table.Location.X + _table[ndx].StartLoc,
-      //      //                    _table.Location.Y + _table.OffsetStringData)
-      //      //                );
-      //      //            break;
-      //      //      }
-      //      //   }
-      //      //}
-
-      //      //var brushes = new SolidBrush[] {
-      //      //            new SolidBrush(_userConfig.MsgErrorFontColor),
-      //      //            new SolidBrush(_userConfig.MsgInfoFontColor),
-      //      //            new SolidBrush(_userConfig.MsgTraceFontColor),
-      //      //            new SolidBrush(_userConfig.MsgWarningFontColor)
-      //      //        };
-      //      //var brushes_blur = new SolidBrush[] {
-      //      //            new SolidBrush(_userConfig.MsgErrorFontColor),
-      //      //            new SolidBrush(_userConfig.MsgInfoFontColor),
-      //      //            new SolidBrush(_userConfig.MsgTraceFontColor),
-      //      //            new SolidBrush(_userConfig.MsgWarningFontColor)
-      //      //        };
-
-      //      //for (int ndx = 0; ndx < brushes.Length; ndx++)
-      //      //{
-      //      //   var color = brushes_blur[ndx].Color;
-      //      //   brushes_blur[ndx].Color = Color.FromArgb(color.A / 2, color.R, color.G, color.B);
-      //      //}
-
-      //      //if (_view != null)
-      //      //{
-      //      //   var currentLine = _table.CurrentDataLine;
-      //      //   string prevTime = "";
-
-      //      //   //Draw the gobal line indicator first.
-      //      //   if (_table.ShowGlobalLine)
-      //      //   {
-      //      //      var line = Math.Abs(_table.CurrentGlobalLine);
-      //      //      if (line >= _table.CurrentDataLine && line <= (_table.CurrentDataLine + _table.RowsPerPage))
-      //      //      {
-      //      //         if (_table.CurrentGlobalLine < 0)
-      //      //         {
-      //      //            float rowYPos = (_table.RowsHeight * (((line - 1) - (_table.CurrentDataLine)) + 1)) + (_table.Location.Y + _table.OffsetStringData);
-      //      //            _newCanvas.gc.DrawLine(
-      //      //                new Pen(_userConfig.GlobalLineSelected, _userConfig.GlobalLineSelectedWidth),
-      //      //                0,
-      //      //                rowYPos,
-      //      //                _table.Size.Width,
-      //      //                rowYPos);
-      //      //         }
-      //      //         else
-      //      //         {
-      //      //            float rowYPos = (_table.RowsHeight * ((line - _table.CurrentDataLine) + 1)) + (_table.Location.Y + _table.OffsetStringData);
-      //      //            _newCanvas.gc.FillRectangle(
-      //      //                new SolidBrush(_userConfig.GlobalLineSelected),
-      //      //                0,
-      //      //                rowYPos,
-      //      //                _table.Size.Width,
-      //      //                _table.RowsHeight);
-      //      //         }
-
-
-      //      //      }
-      //      //   }
-      //      //   var brushLineBkg = new SolidBrush(_userConfig.TableLineSelectedBkg);
-      //      //   var brushMsgBkg = new SolidBrush(_userConfig.TableSearchLinesBkg);
-      //      //   for (int ndx = 0; ndx < _table.RowsPerPage; ndx++)
-      //      //   {
-      //      //      if (currentLine < _table.TotalDataLines)
-      //      //      {
-      //      //         var (isRowSelected, rowData) = _table.GetLine(currentLine);
-      //      //         currentLine++;
-
-      //      //         //float rowYPos = (_table.RowsHeight * (ndx + 1)) + (_table.Location.Y + _table.OffsetStringData);
-      //      //         float rowYPos = _table.GetYPos(ndx);
-
-      //      //         //TODO : future
-      //      //         //if (currentLine > 10 && currentLine < 20)
-      //      //         //{
-      //      //         //   DrawMsgBackground(rowYPos, brushMsgBkg);
-      //      //         //}
-
-      //      //         if (isRowSelected && !_table.ShowGlobalLine)
-      //      //         {
-      //      //            DrawLineBackground(rowYPos, brushLineBkg);
-      //      //         }
-
-      //      //         foreach (var col in _table.Columns)
-      //      //         {
-      //      //            if (!col.Visible) continue;
-      //      //            switch (col.Name)
-      //      //            {
-      //      //               case "LineNo":
-      //      //                  _newCanvas.gc.DrawString(
-      //      //                      $"{currentLine}",
-      //      //                      _userConfig.TableBodyFont,
-      //      //                      new SolidBrush(_userConfig.MsgTraceFontColor),
-      //      //                      _table.Location.X + col.StartLoc,
-      //      //                      rowYPos);
-      //      //                  break;
-
-      //      //               case "TimeStamp":
-
-      //      //                  string newTime = _table.ShowTimeSelected == TableSkeleton.ShowTime.Default ?
-      //      //                     $"{rowData.TimeStamp.ToString(_userConfig.Column1TimeStampFormat)}" :
-      //      //                     $"{(rowData.TimeStamp - _table.ShowTime_Default_StartTime)}"
-      //      //                     ;
-      //      //                  if (prevTime != newTime)
-      //      //                  {
-      //      //                     prevTime = newTime;
-      //      //                     _newCanvas.gc.DrawString(
-      //      //                         newTime,
-      //      //                         _userConfig.TableBodyFont,
-      //      //                        new SolidBrush(_userConfig.MsgTraceFontColor),
-      //      //                         _table.Location.X + col.StartLoc,
-      //      //                         rowYPos
-      //      //                         );
-      //      //                  }
-      //      //                  break;
-      //      //               case "ThId":
-      //      //                  _newCanvas.gc.DrawString(
-      //      //                      $"{rowData.ThreadNo}",
-      //      //                      _userConfig.TableBodyFont,
-      //      //                      new SolidBrush(_userConfig.MsgTraceFontColor),
-      //      //                      _table.Location.X + col.StartLoc,
-      //      //                      rowYPos);
-      //      //                  break;
-      //      //               case "Category":
-      //      //                  _newCanvas.gc.DrawString(
-      //      //                       $"{(rowData.Category.Length <= 10 ? rowData.Category : rowData.Category.Substring(0, 10) + "~")}",
-      //      //                      _userConfig.TableBodyFont,
-      //      //                      new SolidBrush(_userConfig.MsgTraceFontColor),
-      //      //                      _table.Location.X + col.StartLoc,
-      //      //                      rowYPos);
-      //      //                  break;
-      //      //               case "ProcId":
-      //      //                  _newCanvas.gc.DrawString(
-      //      //                      $"{rowData.ProcessId}",
-      //      //                      _userConfig.TableBodyFont,
-      //      //                      new SolidBrush(_userConfig.MsgTraceFontColor),
-      //      //                      _table.Location.X + col.StartLoc,
-      //      //                      rowYPos);
-      //      //                  break;
-
-      //      //               case "ImageNo":
-      //      //                  if (rowData.StackTraceId != LogLine.INVALID)
-      //      //                  {
-      //      //                     _newCanvas.gc.DrawImage(Properties.Resources.stack,
-      //      //                        _table.Location.X + col.StartLoc,
-      //      //                        rowYPos + 2);
-      //      //                  }
-      //      //                  break;
-
-      //      //               case "Message":
-      //      //                  var lineData = rowData.Msg.Replace("\n", "").Replace("\r", "").TrimStart();
-      //      //                  if (_userConfig.FeatureShowCategoryWithMsg)
-      //      //                  {
-      //      //                     lineData = $"[{rowData.Category}], {lineData}";
-      //      //                  }
-      //      //                  _newCanvas.gc.DrawString(
-
-      //      //                      _userConfig.DebugUI ?
-      //      //                      $"{rowData.GlobalLine}| {rowData.FileNumber}| {rowData.LineNumber}| {lineData}" :
-      //      //                      $"{lineData}",
-
-      //      //                      _userConfig.TableBodyFont,
-      //      //                      brushes[(int)rowData.LogType],
-      //      //                      _table.Location.X + col.StartLoc,
-      //      //                      rowYPos);
-      //      //                  break;
-      //      //            }
-      //      //         }
-      //      //      }
-      //      //      else
-      //      //      {
-      //      //         break;
-      //      //      }
-      //      //   }
-      //      //}
-      //      if (_table.TotalDataLines != 0)
-      //      {
-      //         DoWork_DrawScrollBar(_table);
-      //      }
-
-      //      masterPanel.Invoke(new Action(() =>
-      //      {
-      //         lblPage.Text = _table.TotalPages == 0 ? "" : $"{_table.CurrentPage + 1} of {_table.TotalPages}";
-      //         if (lblPage.Text.Length > 9)
-      //         {
-      //            lblPage.Text = $"{_table.CurrentPage + 1} of {_table.TotalPages}";
-      //         }
-      //         masterPanel.CreateGraphics().DrawImage(_newCanvas.bmp, 0, 0);
-      //         if (_lineInfoDlg.Visible)
-      //         {
-      //            SetInfoDialogData();
-      //         }
-
-      //         //TODO : what to update ?
-      //         //UpdateTotal(ViewCommon.Engine.GetStartInfo());
-      //      }));
-
-      //   }
-      //   catch (InvalidOperationException ex1)
-      //   {
-      //      _logger.Error(ex1.ToString());
-      //      Thread.Sleep(200);
-      //      QueueDrawRequest($"Invalid operation");
-      //   }
-      //   catch (Exception ex)
-      //   {
-      //      Thread.Sleep(200);
-      //      _logger.Error(ex.ToString());
-      //      QueueDrawRequest($"Exception.");
-      //   }
-      //}
+      }     
       private void DrawLineBackground(float yPos, SolidBrush brush)
       {
          _newCanvas.gc.FillRectangle(brush, 2, yPos, _table.Size.Width, _table.RowsHeight);
@@ -1529,7 +1302,7 @@ namespace logAxe
 
          if (MessageBox.Show(this, "There are logs in viewer. Please confirm to clear ?", "Alert", MessageBoxButtons.OKCancel) == DialogResult.OK)
          { 
-            ViewCommon.Channel.SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_SET_CLEAR, name: UniqueId, value: null));
+            ViewCommon.Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_PUT_CLEAR, name: UniqueId, value: null));
          }
 
       }
@@ -1540,19 +1313,18 @@ namespace logAxe
       }
       private void btnSavedFilterAdd_Click(object sender, EventArgs e)
       {         
-         ViewCommon.AddFilter(txtSavedFilter.Text, CurrentFilter);
+         ViewCommon.AddFilter(UniqueId, txtSavedFilter.Text, CurrentFilter);
       }
       private void btnSavedFilterApply_Click(object sender, EventArgs e)
       {
-         ViewCommon.Channel.SendMsg(new UnitCmd(opCode: WebFrameWork.CMD_GET_INFO_FILTER, name: UniqueId, value: new TermFilter() { Name= txtSavedFilter.Text }));
+         ViewCommon.Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_GET_FILTER_DETAILS, name: UniqueId, value: new TermFilter() { Name= txtSavedFilter.Text }));
          //TODO : fix this.
          //CurrentFilter = ViewCommon.GetFilter(txtSavedFilter.Text);
          //HelperSetFilter(CurrentFilter, true);
       }
       private void btnSavedFilterDelete_Click(object sender, EventArgs e)
       {
-         //TODO : fix this.
-         //ViewCommon.RemoveFilter(txtSavedFilter.Text);
+         ViewCommon.Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_DEL_FILTER_DETAIL, name: UniqueId, value: new TermFilter() { Name = txtSavedFilter.Text }));
       }
       private void lstSavedFilter_SelectedIndexChanged(object sender, EventArgs e)
       {
@@ -1573,12 +1345,11 @@ namespace logAxe
          pnlFilterTag.Location = new Point(pnlFilterSearch.Location.X, pnlFilterSearch.Location.Y + pnlFilterSearch.Size.Height + 2);
       }
 
-      private void LoadFilter()
+      private void LoadFilter(string [] filters)
       {
          lstSavedFilter.ClearSelected();
-         lstSavedFilter.Items.Clear();
-         var items = ViewCommon.GetAllFilterNames();
-         lstSavedFilter.Items.AddRange(items);
+         lstSavedFilter.Items.Clear();         
+         lstSavedFilter.Items.AddRange(filters);
          txtSavedFilter.Text = "";
 
          btnSavedFilterAdd.Enabled = true;
