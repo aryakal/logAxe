@@ -1,18 +1,18 @@
-﻿# This is a read me file the current constructions.
+# This is a read me file the current constructions.
 #TODO : Dream to unify all communication
 #TODO : How will the streaming interface work.
-#TODO : How will the custome data to be passed.
+#TODO : How will the custom data to be passed.
 
-|---|---|
-| AL (Abstraction layer)        | PL (Physical Layer)            | 
+|Layer | Name |
+|---|---| 
 | IDLClient | IPLCommunication | 
 |  | IPLCommunication | 
 
 
-# AL (Abstraction Layer)/ DL (Decision Layer) / LD (Logical Device) / LL ) (Logical Layer)
+# DL (Decision Layer) 
 
 All abtraction of the code needs to end here (ideally this code should not change.)
 
-# PL (Physical Layer) / Physical Device (PD)
+# PL (Physical Layer) 
 
-All particual deice needs to end here.
+All particual device needs to end here.
