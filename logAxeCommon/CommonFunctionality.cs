@@ -59,7 +59,7 @@ namespace logAxeCommon
 
          
       }
-      public string GetVersionString()
+      public static string GetLogAxeVersion()
       {
          var version = Assembly.GetEntryAssembly().GetName().Version;
          return $"{version.Major}.{version.Minor}.{version.Build}";

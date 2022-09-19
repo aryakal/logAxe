@@ -53,7 +53,6 @@ namespace logAxe
          else
             Text = $"logAxe - {ViewCommon.VersionNo} - [{FrmID}] { (cntrlTextViewer1.FilterMessage == "" ? "" : " - " + cntrlTextViewer1.FilterMessage)}";
       }
-
       private void frmMainWindow_FormClosing(object sender, FormClosingEventArgs e)
       {
 
@@ -63,18 +62,20 @@ namespace logAxe
             {
                e.Cancel = true;
             }
+            else {
+               cntrlTextViewer1.UnRegister();
+            }
          }
          else
          {
+            cntrlTextViewer1.UnRegister();
             ViewCommon.CloseForm(FrmID);
          }
       }
-
       private bool IsMainView()
       {
          return "Main" == FrmID;
       }
-
       private void frmMainWindow_Load(object sender, EventArgs e)
       {
          if (IsMainView()) {
@@ -82,10 +83,8 @@ namespace logAxe
          }
          
       }
-
-      public void SetMainWindowResponsibilities()
-      {
-         cntrlTextViewer1.SetAsMainWindow();
+      public void Register(bool isMainView) {
+         cntrlTextViewer1.Register(isMainView: isMainView);
       }
    }
 }

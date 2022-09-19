@@ -140,7 +140,7 @@ namespace libACommunication
                                     _logger?.Debug($"ws, {ctx.Request.RawUrl}");
                                     var wsContext = ctx.AcceptWebSocketAsync(subProtocol: null).Result;
                                     var webClient = new WebSocketEntity(
-                                        id: SimpleClientInfogGenarator.Generate(),
+                                        id: SimpleClientInfogGenerator.Generate(),
                                         webSocket: wsContext.WebSocket,
                                         requestProcessor: this,
                                         logger: _websoketLogger
@@ -190,7 +190,7 @@ namespace libACommunication
 
       public Task Send(IClientInfo id, UnitMsg msg)
       {
-         return _pDHelper.Clients[id.ID].Send(msg);
+         return _pDHelper.Clients[id.UniqueId].Send(msg);
       }
 
       public Task BroadCast(UnitMsg msg)
@@ -210,24 +210,24 @@ namespace libACommunication
          switch (msgType)
          {
             case LibCommProtoMsgType.Connected:               
-               _logger?.Debug($"Connection Open, {clientInfo.ID}, Clients {_pDHelper.TotalClients}");
+               _logger?.Debug($"Connection Open, {clientInfo.UniqueId}, Clients {_pDHelper.TotalClients}");
                _processor.TotalClients(_pDHelper.TotalClients);
                return null;
             case LibCommProtoMsgType.Disconnected:               
                _pDHelper.RemoveClient(clientInfo);
-               _logger?.Debug($"Connecton close, {clientInfo.ID}, Clients {_pDHelper.TotalClients}, dict {_pDHelper.Clients.Count}");
+               _logger?.Debug($"Connecton close, {clientInfo.UniqueId}, Clients {_pDHelper.TotalClients}, dict {_pDHelper.Clients.Count}");
                _processor.TotalClients(_pDHelper.TotalClients);
                return null;
          }
-         if (string.IsNullOrEmpty(message.UID))
+         if (string.IsNullOrEmpty(message.UniqueId))
          {
-            message.UID = clientInfo.ID;
+            message.UniqueId = clientInfo.UniqueId;
          }
          var ret = _processor.ProcessUnitCmd(msgType, clientInfo, message);
          if (ret != null)
          {
             if (message.OpCode != "lines")
-               _logger?.Debug($"{ret.Status}|{message.UID}|{message.OpCode}|");
+               _logger?.Debug($"{ret.Status}|{message.UniqueId}|{message.OpCode}|");
          }
          return ret;
       }
@@ -261,7 +261,7 @@ namespace libACommunication
          if (_webSocket.State == WebSocketState.Open)
             await _webSocket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(msg)), WebSocketMessageType.Text, true, _cancelToken).ConfigureAwait(false);
          else
-            _logger?.Error($"Trying to send on closed socket, {ID.ID}");
+            _logger?.Error($"Trying to send on closed socket, {ID.UniqueId}");
       }
 
       public async Task Send(UnitMsg operation)

@@ -105,6 +105,7 @@ namespace logAxeCommon
       public static T FromJson<T>(string data) {
          return JsonConvert.DeserializeObject<T>(data);
       }
+      
    }
 
    public class CmdLines
@@ -115,6 +116,8 @@ namespace logAxeCommon
       public int Length { get; set; }
 
    }
+
+
 
    
 }

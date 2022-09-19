@@ -16,11 +16,17 @@ namespace logAxe
 {
    public class Communication : IProtoProcessorCommand
    {
+      internal class LogAxeClient 
+      {
+         public string UniqueId { get; set; }
+         public bool IsViewRequired { get; set; }
+         public Action<UnitMsg> Callback { get; set; }
+      }
       ILibALogger _logger;
       ILDClient _client;
       Task _backgroundClientServer;
       CancellationTokenSource _cts;
-      Dictionary<string, Action<UnitMsg>> _clients = new Dictionary<string, Action<UnitMsg>>();
+      Dictionary<string, LogAxeClient> _clients = new Dictionary<string, LogAxeClient>();
       SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
       public Communication(string serverName)
       {
@@ -66,16 +72,16 @@ namespace logAxe
          switch (msgType)
          {
             case LibCommProtoMsgType.Msg:
-               _logger?.Debug($"{message.UID}, {message.OpCode}");
-               if (message.UID == WebFrameWork.CLIENT_BST_ALL)
+               _logger?.Debug($"{message.UniqueId}, {message.OpCode}");
+               if (message.UniqueId == WebFrameWork.CLIENT_BST_ALL)
                {
                   foreach (var client in _clients) {
                      
-                     _clients[client.Key](message);
+                     _clients[client.Key].Callback(message);
                   }
                }
                else {
-                  _clients[message.UID](message);
+                  _clients[message.UniqueId].Callback(message);
                }
                
                
@@ -89,13 +95,14 @@ namespace logAxe
 
       }
 
-      public void RegisterClient(string clientName, Action<UnitMsg> command)
+      public void RegisterClient(string clientName, Action<UnitMsg> command, bool isViewRequired)
       {
          try
          {
             _lock.Wait();
             _logger?.Info($"adding client {clientName}");
-            _clients[clientName] = command;            
+            var client = new LogAxeClient() { UniqueId = clientName, IsViewRequired = isViewRequired, Callback = command };
+            _clients[client.UniqueId] = client;
          }
          finally {
             _lock.Release();
@@ -110,6 +117,12 @@ namespace logAxe
             if (_clients.ContainsKey(clientName))
             {
                _clients.Remove(clientName);
+               SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_PUT_UNREGISTER, name: clientName,
+                    value: new RegisterClient()
+                    {
+                       Name = clientName                       
+                    }
+                    )); ;
             }
 
          }
@@ -137,7 +150,7 @@ namespace logAxe
                      value: new RegisterClient()
                      {
                         Name = client.Key,
-                        IsViewRequired = true
+                        IsViewRequired = client.Value.IsViewRequired
                      }
                      )); ;
                }

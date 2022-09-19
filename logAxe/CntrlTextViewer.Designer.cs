@@ -62,12 +62,12 @@
          this.lblOptmizeUpdate = new System.Windows.Forms.Label();
          this.lblIndexingUpdate = new System.Windows.Forms.Label();
          this.lblParsingUpdate = new System.Windows.Forms.Label();
-         this.progressBar1 = new System.Windows.Forms.ProgressBar();
+         this.prgOptimizing = new System.Windows.Forms.ProgressBar();
          this.label15 = new System.Windows.Forms.Label();
          this.label1 = new System.Windows.Forms.Label();
          this.lblProgress = new System.Windows.Forms.Label();
+         this.prgFileIndexed = new System.Windows.Forms.ProgressBar();
          this.prgFileParsed = new System.Windows.Forms.ProgressBar();
-         this.prgFileLoad = new System.Windows.Forms.ProgressBar();
          this.pnlFilterSearch = new System.Windows.Forms.Panel();
          this.btnClearFilter = new System.Windows.Forms.Button();
          this.btnShowSavedFilters = new System.Windows.Forms.Button();
@@ -414,12 +414,12 @@
          this.pnlShowProgress.Controls.Add(this.lblOptmizeUpdate);
          this.pnlShowProgress.Controls.Add(this.lblIndexingUpdate);
          this.pnlShowProgress.Controls.Add(this.lblParsingUpdate);
-         this.pnlShowProgress.Controls.Add(this.progressBar1);
+         this.pnlShowProgress.Controls.Add(this.prgOptimizing);
          this.pnlShowProgress.Controls.Add(this.label15);
          this.pnlShowProgress.Controls.Add(this.label1);
          this.pnlShowProgress.Controls.Add(this.lblProgress);
+         this.pnlShowProgress.Controls.Add(this.prgFileIndexed);
          this.pnlShowProgress.Controls.Add(this.prgFileParsed);
-         this.pnlShowProgress.Controls.Add(this.prgFileLoad);
          this.pnlShowProgress.Location = new System.Drawing.Point(18, 132);
          this.pnlShowProgress.Name = "pnlShowProgress";
          this.pnlShowProgress.Size = new System.Drawing.Size(520, 197);
@@ -453,12 +453,12 @@
          this.lblParsingUpdate.TabIndex = 41;
          this.lblParsingUpdate.Text = "66.80%";
          // 
-         // progressBar1
+         // prgOptimizing
          // 
-         this.progressBar1.Location = new System.Drawing.Point(195, 148);
-         this.progressBar1.Name = "progressBar1";
-         this.progressBar1.Size = new System.Drawing.Size(238, 5);
-         this.progressBar1.TabIndex = 44;
+         this.prgOptimizing.Location = new System.Drawing.Point(195, 148);
+         this.prgOptimizing.Name = "prgOptimizing";
+         this.prgOptimizing.Size = new System.Drawing.Size(238, 5);
+         this.prgOptimizing.TabIndex = 44;
          // 
          // label15
          // 
@@ -493,19 +493,19 @@
          this.lblProgress.Text = "Optimizing |";
          this.lblProgress.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
          // 
+         // prgFileIndexed
+         // 
+         this.prgFileIndexed.Location = new System.Drawing.Point(195, 103);
+         this.prgFileIndexed.Name = "prgFileIndexed";
+         this.prgFileIndexed.Size = new System.Drawing.Size(238, 5);
+         this.prgFileIndexed.TabIndex = 1;
+         // 
          // prgFileParsed
          // 
-         this.prgFileParsed.Location = new System.Drawing.Point(195, 103);
+         this.prgFileParsed.Location = new System.Drawing.Point(195, 49);
          this.prgFileParsed.Name = "prgFileParsed";
          this.prgFileParsed.Size = new System.Drawing.Size(238, 5);
-         this.prgFileParsed.TabIndex = 1;
-         // 
-         // prgFileLoad
-         // 
-         this.prgFileLoad.Location = new System.Drawing.Point(195, 49);
-         this.prgFileLoad.Name = "prgFileLoad";
-         this.prgFileLoad.Size = new System.Drawing.Size(238, 5);
-         this.prgFileLoad.TabIndex = 0;
+         this.prgFileParsed.TabIndex = 0;
          // 
          // pnlFilterSearch
          // 
@@ -1213,9 +1213,9 @@
       private System.Windows.Forms.ToolStripMenuItem exportFileToolStripMenuItem;
       private System.Windows.Forms.Button btnClear;
       private System.Windows.Forms.Panel pnlShowProgress;
+      private System.Windows.Forms.ProgressBar prgFileIndexed;
       private System.Windows.Forms.ProgressBar prgFileParsed;
-      private System.Windows.Forms.ProgressBar prgFileLoad;
-      private System.Windows.Forms.ProgressBar progressBar1;
+      private System.Windows.Forms.ProgressBar prgOptimizing;
       private System.Windows.Forms.Label label15;
       private System.Windows.Forms.Label label1;
       private System.Windows.Forms.Label lblProgress;

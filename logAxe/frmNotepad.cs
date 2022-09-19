@@ -23,6 +23,11 @@ namespace logAxe
          Icon = Properties.Resources.axe_icon_svg_128;
       }
 
+      public void Register()
+      {
+         cntrlTextViewer1.Register(isMainView: false);
+      }
+
       public void SetTitle(string text)
       {
          Text = $"logAxe - {text}";
@@ -42,6 +47,7 @@ namespace logAxe
 
       private void frmNotepad_FormClosing(object sender, FormClosingEventArgs e)
       {
+         cntrlTextViewer1.UnRegister();
          ViewCommon.CloseNotepad(NotepadName);
       }
    }

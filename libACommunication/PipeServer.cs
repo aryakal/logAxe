@@ -41,13 +41,13 @@ namespace libACommunication
          switch (msgType)
          {
             case LibCommProtoMsgType.Connected:
-               _logger?.Debug($"{msgType}, {clientInfo.ID}, Clients {_pDHelper.TotalClients}, dict {_pDHelper.Clients.Count}");
+               _logger?.Debug($"{msgType}, {clientInfo.UniqueId}, Clients {_pDHelper.TotalClients}, dict {_pDHelper.Clients.Count}");
                _processor.TotalClients(_pDHelper.Clients.Count);
                return null;
 
             case LibCommProtoMsgType.Disconnected:
                _pDHelper.RemoveClient(clientInfo);
-               _logger?.Debug($"{msgType}, {clientInfo.ID}, Clients {_pDHelper.TotalClients}, dict {_pDHelper.Clients.Count}");
+               _logger?.Debug($"{msgType}, {clientInfo.UniqueId}, Clients {_pDHelper.TotalClients}, dict {_pDHelper.Clients.Count}");
                _processor.TotalClients(_pDHelper.Clients.Count);
                return null;
 
@@ -72,8 +72,8 @@ namespace libACommunication
                   var server = new NamedPipeServerStream(_pipeName, PipeDirection.InOut, 254, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
                   server.WaitForConnectionAsync(token).Wait();
                   _logger?.Debug("Client connected");
-                  var id = SimpleClientInfogGenarator.Generate();
-                  var client = new PipeServerClientInstace(Logging.GetLogger(id.ID), id, server, this);
+                  var id = SimpleClientInfogGenerator.Generate();
+                  var client = new PipeServerClientInstace(Logging.GetLogger(id.UniqueId), id, server, this);
                   _pDHelper.AddClient(client.ID, client);
                   _ = client.Run(token);
                }
@@ -94,7 +94,7 @@ namespace libACommunication
       }
       public Task Send(IClientInfo id, UnitMsg msg)
       {
-         return _pDHelper.Clients[id.ID].Send(msg);
+         return _pDHelper.Clients[id.UniqueId].Send(msg);
       }
    }
 }

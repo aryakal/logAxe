@@ -133,7 +133,12 @@ namespace logAxeEngine.Storage
 
          //TODO : - improve time to optimze time.         
          //tempSort = tempSort.OrderBy(stamp => stamp.TimeStamp).ToArray(); // bad idea with huge array it will crash.q
-         Array.Sort(tempSort, delegate (TempInterLogLine x, TempInterLogLine y) { return x.TimeStamp.CompareTo(y.TimeStamp); });
+
+         //Need to order the lines correctly if they have the same timestamp as per the global line.
+         Array.Sort(tempSort, delegate (TempInterLogLine x, TempInterLogLine y) {
+            var firstComparision = x.TimeStamp.CompareTo(y.TimeStamp);
+            return firstComparision != 0 ? firstComparision : x.InternalGlobalLine.CompareTo(y.InternalGlobalLine);
+         });
 
          Parallel.For(0, totalLogLines, ndx =>
          {
@@ -259,16 +264,6 @@ namespace logAxeEngine.Storage
       
       private void CreateSortedIndexes()
       {
-         //TODO : String id is  not matching with index of storage.
-
-
-         /*
-          *  2 | 3 | 2 |
-          * 2 - 0, 2
-          * 3 - 1
-          */
-
-
          var totalLogLines = _store.Count;
          var sortedMessages = HelperCreateEmptyIndex(_dbString.Count + 10);
          var sortedTags = HelperCreateEmptyIndex(_dbTag.Count + 10);

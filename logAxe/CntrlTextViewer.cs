@@ -116,14 +116,14 @@ namespace logAxe
          if (ViewCommon.Channel != null)
          {
             _userConfig = ViewCommon.ConfigOfSystem;
-            ViewCommon.Channel.RegisterClient(UniqueId, DoWork);
+            //ViewCommon.Channel.RegisterClient(UniqueId, DoWork);
             new HelperAttachFileDrop(this);
             new HelperAttachFileDrop(masterPanel);
             RegisterControl(masterPanel);
             SetForeColor();
             AddMenuItem();
             _newCanvas.SetSize(masterPanel.Size);
-            _table.Resize(_newCanvas.bmp.Size);
+            _table.Resize(_newCanvas.bmp.Size, ViewCommon.ConfigOfSystem);
             _table.Dirty = false;
 
             _timerBackgroundDraw = new System.Windows.Forms.Timer();
@@ -131,17 +131,23 @@ namespace logAxe
             _timerBackgroundDraw.Tick += (sender, args) => DoWork_Draw3(); 
             _timerBackgroundDraw.Start();
 
-            ViewCommon.GetCurrentTheme(viewName: UniqueId);
-            ViewCommon.GetFilterList(viewName: UniqueId);
+            //ViewCommon.GetCurrentTheme(viewName: UniqueId);
+            //ViewCommon.GetFilterList(viewName: UniqueId);
 
             
          }
       }
 
-      public void SetAsMainWindow()
+      public void Register(bool isMainView)
       {
-         IsMainWindow = true;
+         IsMainWindow = isMainView;
+         ViewCommon.Channel.RegisterClient(UniqueId, DoWork, !IsViewNotepad);
          ViewCommon.GetCurrentTheme(viewName: UniqueId);
+         ViewCommon.GetFilterList(viewName: UniqueId);
+      }
+      public void UnRegister()
+      {  
+         ViewCommon.Channel.UnRegisterClient(UniqueId);
       }
 
       public void EnableFileAppInfo()
@@ -265,10 +271,8 @@ namespace logAxe
       }
       private void MoveLine(int delta)
       {
-         if (_table.MoveByLineDelta(delta))
-         {
-            QueueDrawRequest("Ctrl_MouseUp");
-         }
+         _ = _table.MoveByLineDelta(delta);
+         QueueDrawRequest("move line");
       }
       private void RegisterControl(Control ctrl)
       {
@@ -336,11 +340,15 @@ namespace logAxe
             }
             else
             {
-               if (_table.SetCurrentSelection(e.Y,
-                   Control.ModifierKeys
-                   ))
+               var (draw, logLine) = _table.SetCurrentSelection(e.Y, Control.ModifierKeys);
+               if (draw)
                {
                   QueueDrawRequest("Ctrl_MouseUp");
+               }
+
+               if (logLine != null)
+               {
+                  ViewCommon.MsgBroadcastGlobalLine(UniqueId, logLine.GlobalLine);
                }
 
             }
@@ -435,10 +443,11 @@ namespace logAxe
          //enable disable menu button based on line selected and if it is a notepad.
          copyToNotepadToolStripMenuItem.Enabled = isLineSlected;
          exportFileToolStripMenuItem.Enabled = isLineSlected;
-         filterByToolStripMenuItem.Enabled = (isLineSlected && !_isNotepad);
+         filterByToolStripMenuItem.Enabled = false;
 
-         if (filterByToolStripMenuItem.Enabled)
+         if ((isLineSlected && !_isNotepad) && null!=logLine)
          {
+            filterByToolStripMenuItem.Enabled = true;
             filterByThreadId.Text = $"ThreadId- {logLine.ThreadNo}";
             filterByCategoryId.Text = $"Category- {logLine.Category}";
             filterByProcId.Text = $"ProcessId- {logLine.ProcessId}";
@@ -579,6 +588,31 @@ namespace logAxe
          var (lineNo, totalLines, lineInfo) = _table.GetCurrentSelectedLineInfo();
          _lineInfoDlg.SetCurrentLine(lineNo, totalLines, lineInfo);
       }
+      
+      private void CopyLinesToClipBoard()
+      {
+         try
+         {
+            var lst = _table.GetAllSelectedLogLines();
+
+            if (lst.Length == 0)
+               return;
+            ViewCommon.ExportLinesToClipBoard(UniqueId, lst);
+            
+         }
+         catch (Exception ex)
+         {
+            MessageBox.Show(ex.ToString(), "Error in copy to clipboard", MessageBoxButtons.OK);
+         }
+      }
+      public void ExportToClipboard(string selectedHLines, string selectedPLines)
+      {
+         var clipText = new DataObject();
+         clipText.SetData(DataFormats.Html, GetMSFormattedHtml(selectedHLines.ToString()));
+         clipText.SetData(DataFormats.Text, selectedPLines.ToString());
+         clipText.SetData(DataFormats.UnicodeText, selectedPLines.ToString());
+         Clipboard.SetDataObject(clipText, true);
+      }
       private string GetMSFormattedHtml(string html)
       {
          //https://docs.microsoft.com/en-us/windows/win32/dataxchg/html-clipboard-format
@@ -617,55 +651,6 @@ namespace logAxe
          headerSb.Replace("000000004", indexOfEndOfFragment.ToString("D9"), 0, indexOfStartHtml);
 
          return headerSb.ToString();
-      }
-      private void CopyLinesToClipBoard()
-      {
-         try
-         {
-            var lst = _table.GetAllSelectedLogLines();
-
-            if (lst.Count == 0)
-               return;
-
-            var selectedPLines = new StringBuilder();
-            var selectedHLines = new StringBuilder();
-
-            foreach (var line in lst)
-            {
-               var logType = line.LogType.ToString().Substring(0, 1);
-               //TODO : move to logAxeLibCommon the default time format.
-               var timeStamp = line.TimeStamp.ToString(ViewCommon.DefaultDateTimeFmt);
-               var logText = line.Msg.Length > 120 ? line.Msg.Substring(0, 120).Replace("\n", "") + "..." : line.Msg.Replace("\n", "");
-               var lineColor = "red";
-
-               switch (line.LogType)
-               {
-                  case LogType.Info:
-                     lineColor = "green";
-                     break;
-                  case LogType.Trace:
-                     lineColor = "black";
-                     break;
-                  case LogType.Warning:
-                     lineColor = "orange";
-                     break;
-
-               }
-               selectedPLines.Append($"{logType}, {timeStamp}, {logText}{Environment.NewLine}");
-               selectedHLines.Append($"{logType}, {timeStamp}, <span style=\"color: {lineColor}\">{logText}</span><br>");
-
-
-            }
-            var clipText = new DataObject();
-            clipText.SetData(DataFormats.Html, GetMSFormattedHtml(selectedHLines.ToString()));
-            clipText.SetData(DataFormats.Text, selectedPLines.ToString());
-            clipText.SetData(DataFormats.UnicodeText, selectedPLines.ToString());
-            Clipboard.SetDataObject(clipText, true);
-         }
-         catch (Exception ex)
-         {
-            MessageBox.Show(ex.ToString(), "Error in copy to clipboard", MessageBoxButtons.OK);
-         }
       }
       private void TogglePanel()
       {
@@ -831,8 +816,15 @@ namespace logAxe
                break;
             case WebFrameWork.CMD_PUT_LINES:               
                var val = message.GetData<WebLogLines>();
+               //Update the log info viewer if that data was not in the view earlier.
                if (val.LogLines.Count <= _table.RowsPerPage) { 
                   DoWork_Draw2(WebFrameWork.CMD_GET_LINES, val);
+               }
+               if (_lineInfoDlg.Visible) {
+                  _lineInfoDlg.Invoke(new Action(() =>
+                  {
+                     SetInfoDialogData();
+                  }));                
                }
                break;
             case WebFrameWork.CMD_PUT_NEW_VIEW:               
@@ -844,13 +836,45 @@ namespace logAxe
                OnNewNotepadChange?.Invoke(CntrlTextViewerMsg.SetTitle);
                QueueDrawRequest("on new theme");                           
                break;
-            case WebFrameWork.CMD_PUT_FILE_APP_MEM_INFO:
+            case WebFrameWork.MSG_BST_PROGRESS:
                {
-                  var fileAppMemInfo = message.GetData<UnitCmdFileAppMemInfo>();
+                  var fileAppMemInfo = message.GetData<FileParseProgressEvent>();
                   lblFileSize.Invoke(new Action(() =>
-                  {
-                     lblFileSize.Text = Utils.GetHumanSize(fileAppMemInfo.FileSize, showInt:false);
+                  {                     
+                     if (IsMainWindow)
+                     {
+                        if(fileAppMemInfo.ParseInProgress && _timerUpdateInfo.Interval != 1000)
+                           _timerUpdateInfo.Interval = 1000;
+
+                        if (!fileAppMemInfo.ParseInProgress && _timerUpdateInfo.Interval != 5000)
+                           _timerUpdateInfo.Interval = 5000;
+                     }
+
+                     if (fileAppMemInfo.ParseInProgress != pnlShowProgress.Visible)
+                     {
+                        if (!pnlShowProgress.Visible)
+                        {
+                           prgFileIndexed.Value = 0;
+                           prgFileIndexed.Maximum = fileAppMemInfo.TotalFile;
+                           prgFileParsed.Value = 0;
+                           prgFileParsed.Maximum = fileAppMemInfo.TotalFile;
+                           prgOptimizing.Value = 0;
+                        }
+                        pnlShowProgress.Visible = fileAppMemInfo.ParseInProgress;
+                     }
+
+                     if(fileAppMemInfo.ParseInProgress)
+                     {
+                        prgFileParsed.Value = fileAppMemInfo.FilesParsed;
+                        prgFileIndexed.Value = fileAppMemInfo.FilesIndexed;
+                        lblParsingUpdate.Text = Utils.Percentage(fileAppMemInfo.FilesParsed, fileAppMemInfo.TotalFile);
+                        lblIndexingUpdate.Text = Utils.Percentage(fileAppMemInfo.FilesIndexed, fileAppMemInfo.TotalFile);
+                     }
+
+
+                     lblFileSize.Text = Utils.GetHumanSize(fileAppMemInfo.FilesLoadedSize, showInt:false);
                      lblAppMemSize.Text = Utils.GetHumanSize(fileAppMemInfo.AppSize);
+                     lblTotalFiles.Text = $"{fileAppMemInfo.FilesParsed} of {fileAppMemInfo.TotalFile}";
                   }));
                 }
                break;
@@ -867,7 +891,7 @@ namespace logAxe
                   _userConfig = message.GetData<ConfigUI>();
                   if (IsMainWindow)
                   {
-                     ViewCommon.ConfigOfSystem = _userConfig;
+                     ViewCommon.ConfigOfSystem = _userConfig;                     
                   }
                   _drawRequired = true;
                   _table.Dirty = true;
@@ -881,7 +905,31 @@ namespace logAxe
                      LoadFilter(filters);
                   }));
                   break;
-
+               }
+            /*
+             * Donot like the implemenation but here it goes. Once user chooses the lines it is giving to the server as it has reference to all the lines.
+             * There it iterates and exportes these lines back to the client. Now client can copy the lines to clipboard why because client is runnign in
+             * STA threading (windows form thing !). As of now we cannot put this functionality to a Util classs and export from the server/engine itself.
+             * MSG_NAVIGATE_TO_VIEW_LINE sends lines to the server
+             * MSG_COPY_TO_CLIPBOARD_UNTIL_FIXED_HTML sends the two HTML and plain text as string array.
+             */
+            case WebFrameWork.MSG_NAVIGATE_TO_VIEW_LINE:
+               {
+                  if (message.UniqueId == UniqueId)
+                  {
+                     var navigateToLine = message.GetData<int>();
+                     _table.SetGlobalLine(navigateToLine);
+                     QueueDrawRequest("move to global line");
+                  }
+                  break;
+               }
+            case WebFrameWork.MSG_COPY_TO_CLIPBOARD_UNTIL_FIXED_HTML:
+               {
+                  var clipboardStings = message.GetData<string[]>();
+                  masterPanel.Invoke(new Action(() => {
+                     ExportToClipboard(clipboardStings[0], clipboardStings[1]);
+                  }));
+                  break;
                }
             default:
                _logger?.Error($"No handling for {message.OpCode}");
@@ -1045,36 +1093,35 @@ namespace logAxe
          var currentLine = _table.CurrentDataLine;
          string prevTime = "";
 
-         ////Draw the gobal line indicator first.
-         //if (_table.ShowGlobalLine)
-         //{
-         //   var line = Math.Abs(_table.CurrentGlobalLine);
-         //   if (line >= _table.CurrentDataLine && line <= (_table.CurrentDataLine + _table.RowsPerPage))
-         //   {
-         //      if (_table.CurrentGlobalLine < 0)
-         //      {
-         //         float rowYPos = (_table.RowsHeight * (((line - 1) - (_table.CurrentDataLine)) + 1)) + (_table.Location.Y + _table.OffsetStringData);
-         //         _newCanvas.gc.DrawLine(
-         //             new Pen(_userConfig.GlobalLineSelected, _userConfig.GlobalLineSelectedWidth),
-         //             0,
-         //             rowYPos,
-         //             _table.Size.Width,
-         //             rowYPos);
-         //      }
-         //      else
-         //      {
-         //         float rowYPos = (_table.RowsHeight * ((line - _table.CurrentDataLine) + 1)) + (_table.Location.Y + _table.OffsetStringData);
-         //         _newCanvas.gc.FillRectangle(
-         //             new SolidBrush(_userConfig.GlobalLineSelected),
-         //             0,
-         //             rowYPos,
-         //             _table.Size.Width,
-         //             _table.RowsHeight);
-         //      }
+         //Draw the gobal line indicator first.
+         if (_table.ShowGlobalLine)
+         {
+            var line = Math.Abs(_table.CurrentGlobalLine);
+            if (line >= _table.CurrentDataLine && line <= (_table.CurrentDataLine + _table.RowsPerPage))
+            {
+               if (_table.CurrentGlobalLine < 0)
+               {
+                  float rowYPos = (_table.RowsHeight * (((line - 1) - (_table.CurrentDataLine)) + 1)) + (_table.Location.Y + _table.OffsetStringData);
+                  _newCanvas.gc.DrawLine(
+                      new Pen(_userConfig.GlobalLineSelected, _userConfig.GlobalLineSelectedWidth),
+                      0,
+                      rowYPos,
+                      _table.Size.Width,
+                      rowYPos);
+               }
+               else
+               {
+                  float rowYPos = (_table.RowsHeight * ((line - _table.CurrentDataLine) + 1)) + (_table.Location.Y + _table.OffsetStringData);
+                  _newCanvas.gc.FillRectangle(
+                      new SolidBrush(_userConfig.GlobalLineSelected),
+                      0,
+                      rowYPos,
+                      _table.Size.Width,
+                      _table.RowsHeight);
+               }
+            }
+         }
 
-
-         //   }
-         //}
          var brushLineBkg = new SolidBrush(_userConfig.TableLineSelectedBkg);
          var brushMsgBkg = new SolidBrush(_userConfig.TableSearchLinesBkg);
          for (int ndx = 0; ndx < _table.RowsPerPage; ndx++)
@@ -1191,6 +1238,7 @@ namespace logAxe
          }
 
       }
+     
       private void Draw_Step3_Scrollbar(TableSkeleton table)
       {
          var color = _userConfig.ScrollBarColor;//TODO, color of the scroll bar should be configurable.
@@ -1229,7 +1277,7 @@ namespace logAxe
             _lockDraw.Wait();
             if (_newCanvas.SetSize(masterPanel.Size))
             {
-               _table.Resize(_newCanvas.bmp.Size);               
+               _table.Resize(_newCanvas.bmp.Size, ViewCommon.ConfigOfSystem);               
             }
             //_logger?.Debug($"QueueDrawRequest: {msg}");
             ViewCommon.Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_GET_LINES, name: UniqueId, value: new UnitCmdGetLines() { StartLine = _table.CurrentDataLine, Length = _table.RowsPerPage }));
@@ -1356,6 +1404,10 @@ namespace logAxe
          btnSavedFilterDelete.Enabled = false;
          btnSavedFilterApply.Enabled = false;
       }
+
+      #region ShowProgress functionality
+
+      #endregion
 
    }
 

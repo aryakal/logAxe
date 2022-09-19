@@ -40,6 +40,8 @@ namespace logAxe
 
       public void SetCurrentLine(int currentLine, int totalLine, LogLine lineInfo)
       {
+         if (null == lineInfo)
+            return;
          _currentLine = currentLine;
          var timeStamp = lineInfo.TimeStamp.ToString(ViewCommon.DefaultDateTimeFmt);
          Text = $"{timeStamp} [{currentLine}]";

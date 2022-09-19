@@ -56,7 +56,6 @@
     <Compile Include="EventMessages\AddLineToNotepadEvent.cs" />
     <Compile Include="EventMessages\CurentResourceUsage.cs" />
     <Compile Include="EventMessages\CurrentGlobalLine.cs" />
-    <Compile Include="EventMessages\FileParseProgressEvent.cs" />
     <Compile Include="http\logAxeHttpServerProxy.cs" />
     <Compile Include="Interfaces\IEngine.cs" />
     <Compile Include="Interfaces\ILogLinesStorage.cs" />

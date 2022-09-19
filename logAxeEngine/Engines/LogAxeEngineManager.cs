@@ -29,9 +29,10 @@ namespace logAxeEngine.Engines
       private int UniqueFileId { get; set; } = LogLine.INVALID;
       private readonly ILibALogger _logger;      
       private readonly FileParseProgressEvent _fileProgressStat = new FileParseProgressEvent();
-      private readonly SemaphoreSlim _lockAddition = new SemaphoreSlim(1, 1);
+      private readonly SemaphoreSlim _lockUpdateInfo = new SemaphoreSlim(1, 1);
+      private readonly SemaphoreSlim _lockIndexFiles = new SemaphoreSlim(1, 1);
       private readonly IPluginManager _pluginManger;
-      private IMessageExchanger _messgeExchanger;
+      //private IMessageExchanger _messgeExchanger;
 
       private readonly List<IFileObject> _allFiles = new List<IFileObject>();
       private long _totalFileSize = 0;
@@ -43,7 +44,7 @@ namespace logAxeEngine.Engines
 
       public LogAxeEngineManager(IPluginManager pluginManager)
       {
-         _messgeExchanger = null;
+         //_messgeExchanger = null;
          _logger = Logging.GetLogger("logEng");         
 
          _pluginManger = pluginManager;
@@ -52,6 +53,9 @@ namespace logAxeEngine.Engines
 
       #region Implements ILogLinesStorage
       public int TotalLogLines => _database.TotalLogLines;
+
+      public Action OnParseComplete { get; set; }
+
       public void Clear()
       {
          if (null != _database)
@@ -65,17 +69,17 @@ namespace logAxeEngine.Engines
             _database = null;
 
          }
-         _fileProgressStat.TotalFileCount = 0;
-         _fileProgressStat.TotalFileLoadedCount = 0;
-         _fileProgressStat.TotalFileParsedCount = 0;
-         _fileProgressStat.TotalFileRejectedCount = 0;
-         _fileProgressStat.TotalFileSizeLoaded = 0;
+         _fileProgressStat.TotalFile = 0;
+         _fileProgressStat.FilesParsed = 0;
+         _fileProgressStat.FilesIndexed = 0;
+         _fileProgressStat.FilesRejected = 0;
+         _fileProgressStat.FilesLoadedSize = 0;
 
          _storeMsgStack = new StorageStringDB();
          _storeTag = new StorageStringDB();
          _database = new StorageMetaDatabase(_storeMsgStack, _storeTag);
          _allFiles.Clear();
-         _messgeExchanger?.BroadCast(new UnitMsg(opCode: WebFrameWork.CMD_PUT_NEW_VIEW, name: WebFrameWork.CLIENT_BST_ALL));
+         //_messgeExchanger?.BroadCast(new UnitMsg(opCode: WebFrameWork.CMD_PUT_NEW_VIEW, name: WebFrameWork.CLIENT_BST_ALL));
          UniqueFileId = LogLine.INVALID;
          GC.Collect();
       }
@@ -125,6 +129,7 @@ namespace logAxeEngine.Engines
       }
       public void AddFiles(IFileObject[] paths, bool processAsync = true, bool addFileAsync = true)
       {
+         
          var tsk = Task.Run(() =>
          {
             ProcessFiles(paths, processAsync);
@@ -188,7 +193,6 @@ namespace logAxeEngine.Engines
          }
       }
 
-
       public string GetLicenseInfo()
       {
          return " The MIT License (MIT)" +
@@ -200,6 +204,8 @@ namespace logAxeEngine.Engines
       }
       public FileParseProgressEvent GetStartInfo()
       {
+         _fileProgressStat.AppSize = new AppSize().Memory;
+         //_logger?.Debug($"{_fileProgressStat}");
          return _fileProgressStat;
       }
 
@@ -272,8 +278,6 @@ namespace logAxeEngine.Engines
          }
          return Tuple.Create(validFiles, totalFileSize);
       }
-
-
       private void ProcessFiles(IFileObject[] files, bool useParallelTasks = true)
       {
          var (validFiles, totalFileSize) = HelperAssociateParser(files);
@@ -284,8 +288,8 @@ namespace logAxeEngine.Engines
             return;
          
 
-         _fileProgressStat.TotalFileCount += validFiles;
-         _fileProgressStat.ParseComplete = false;
+         _fileProgressStat.TotalFile += validFiles;
+         _fileProgressStat.ParseInProgress = true;         
 
          if (useParallelTasks)
          {
@@ -300,90 +304,94 @@ namespace logAxeEngine.Engines
             {
                AddFileToIndex(files[ndx]);
             }
-         }
-         
-         _database.OptimizeData();
-         //_messenger.PostMessage(LogAxeMessageEnum.EngineOptmizeComplete);
-         //_messgeExchanger?.BroadCast(null);
+         }         
+         _database.OptimizeData();         
          Utils.ClearAllGCMemory();
          GC.Collect();
-         _logger.Debug("optmizing data compeleted");         
-         _fileProgressStat.ParseComplete = true;
-         //_messenger.PostMessage(_fileProgressStat);
-         //_messgeExchanger?.BroadCast(null);
-         //_messenger.PostMessage(LogAxeMessageEnum.NewViewAnnouncement);
-         _messgeExchanger?.BroadCast(new UnitMsg(opCode: WebFrameWork.CMD_PUT_NEW_VIEW, name: WebFrameWork.CLIENT_BST_ALL));         
+         _logger.Debug("optmizing data compeleted");
+         _fileProgressStat.ParseInProgress = false;         
+         OnParseComplete?.Invoke();
       }
       private void AddFileToIndex(IFileObject fo)
       {
          if (fo.InfoTracker.IsProcessed || fo.InfoTracker.LogParser == null)
          {
-            _lockAddition.Wait();
-            _fileProgressStat.TotalFileSizeLoaded += fo.FileSize;
-            _fileProgressStat.TotalFileLoadedCount++;
-            _fileProgressStat.TotalFileParsedCount++;
-            _lockAddition.Release();
+            UpdateProgress(fo);
             return;
          }
 
-         var logFile = new LogFile(
-            Path.GetFileName(fo.FileName),
-            fo.GetFileData()
-            )
+         var logFile = new LogFile(Path.GetFileName(fo.FileName), fo.GetFileData())
          {
             FileId = fo.InfoTracker.UniqueFileNo
          };
 
-
          try
          {
-            fo.InfoTracker.LogParser.ParseFile(logFile);
+            fo.InfoTracker.LogParser.ParseFile(logFile);          
          }
          catch (Exception ex)
          {
             fo.InfoTracker.ExceptionDetails = ex;            
          }
 
-
-         _lockAddition.Wait();
+         UpdateProgress(fo);
+         _lockIndexFiles.Wait();
          try
          {
-            if (fo.InfoTracker.HasException)
+            _database.AddLogFile(logFile, logFile.FileId);
+            fo.InfoTracker.IsProcessed = true;
+         }
+         catch {
+            
+         }
+         finally
+         { 
+            _lockIndexFiles.Release();
+            UpdateIndexProgress();
+         }         
+         logFile.Clear();
+      }
+
+      private void UpdateProgress(IFileObject fo)
+      {
+         _lockUpdateInfo.Wait();
+         try
+         {
+            _fileProgressStat.FilesLoadedSize += fo.FileSize;
+
+            if (fo.InfoTracker.LogParser == null || fo.InfoTracker.HasException)
             {
-               _fileProgressStat.TotalFileLoadedCount++;
-               _fileProgressStat.TotalFileRejectedCount++;
+               _fileProgressStat.FilesRejected++;
                fo.InfoTracker.IsProcessed = false;
             }
-            else 
+            else
             {
-               _fileProgressStat.TotalFileSizeLoaded += logFile.FileData.Length;
-               _fileProgressStat.TotalFileLoadedCount++;
-               _database.AddLogFile(logFile, logFile.FileId);
-               _fileProgressStat.TotalFileParsedCount++;
-               fo.InfoTracker.IsProcessed = true;               
+               _fileProgressStat.FilesParsed++;
             }
-            //_messenger.PostMessage(_fileProgressStat);
-
          }
          catch
          {
          }
          finally
          {
-            _lockAddition.Release();
+            _lockUpdateInfo.Release();
          }
-
-         logFile.Clear();
       }
 
-      public void RegisterMessageExchanger(IMessageExchanger exchanger)
+      private void UpdateIndexProgress()
       {
-         _messgeExchanger = exchanger;
-      }
-
-      public UnitCmdFileAppMemInfo GetFileAppMemInfo()
-      {
-         return new UnitCmdFileAppMemInfo() { AppSize = new AppSize().Memory, FileSize = _totalFileSize };
+         _lockUpdateInfo.Wait();
+         try
+         {
+            _fileProgressStat.FilesIndexed++;
+         }
+         catch
+         {
+         }
+         finally
+         {
+            _lockUpdateInfo.Release();
+         }
       }
 
       #endregion

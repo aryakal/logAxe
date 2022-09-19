@@ -30,7 +30,7 @@ namespace logAxe
          ViewCommon.Init(cmdParser.IsEnabled(cmd_show_console));
          //ViewCommon.WaitingForInitComplete.Task.Wait();
          var frm = new frmMainWindow();
-         frm.SetMainWindowResponsibilities();
+         frm.Register(isMainView:true);
          Application.Run(frm);         
          ViewCommon.DeInit();
       }

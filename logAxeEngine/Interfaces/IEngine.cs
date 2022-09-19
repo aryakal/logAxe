@@ -7,6 +7,7 @@ using logAxeCommon.Interfaces;
 using logAxeCommon;
 using logAxeEngine.Common;
 using logAxeEngine.EventMessages;
+using System;
 
 namespace logAxeEngine.Interfaces
 {
@@ -20,9 +21,7 @@ namespace logAxeEngine.Interfaces
       void ExportFiles(LogFileInfo[] fileList, string exportFilePath);
       string GetLicenseInfo();      
       FileParseProgressEvent GetStartInfo();
-
-      UnitCmdFileAppMemInfo GetFileAppMemInfo();
-
-      void RegisterMessageExchanger(IMessageExchanger exchanger);
+      //void RegisterMessageExchanger(IMessageExchanger exchanger);
+      Action OnParseComplete { get; set; }
    }
 }

@@ -22,7 +22,7 @@ namespace logAxe
 {
    class ViewCommon
    {
-      public static string VersionNo { get; set; } = "Version yet to come";
+      public static string VersionNo { get; set; } = "";
       public static string DefaultDateTimeFmt { get; } = "yyyy-MM-dd hh:mm:ss.fff";
       public static string DefaultDateTimeFileFmt { get; } = "yyyyMMddhhmmssfff";
       public static Communication Channel { get; private set; }
@@ -32,6 +32,7 @@ namespace logAxe
       #region Init and Deinit
       public static void Init(bool showConsole)
       {
+         VersionNo = CommonFunctionality.GetLogAxeVersion();
          LaunchLogAxe(showConsole);
          _uiConfigFrm = new frmConfigAbout();
          _uiFileManagerFrm = new frmFileManager();
@@ -118,9 +119,11 @@ namespace logAxe
       public static void StartMain()
       {
          NextId++;
-         var frm = new frmMainWindow();
-         frm.FrmID = $"View {NextId}";
+         var frm = new frmMainWindow();         
+         frm.FrmID = $"View {NextId}";         
          _windows.Add(frm.FrmID, frm);
+         frm.Register(isMainView: false);
+
          TotalWindows = _windows.Count + 1;
          frm.Show();
          //_msgHelper.PostMessage(new LogAxeGenericMessage() { MessageType = LogAxeMessageEnum.NewMainFrmAddRemoved });
@@ -142,6 +145,7 @@ namespace logAxe
          var notepadName = $"Notepad [{NewNotepadCount}]";
          _notepads.Add(notepadName, null);
          var frm = new frmNotepad();
+         frm.Register();
          frm.NotepadName = notepadName;
          frm.SetTitle(frm.NotepadName);
          frm.Show();
@@ -180,7 +184,7 @@ namespace logAxe
 
       public static void GetFileAppMemInfo(string viewName)
       {
-         Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_GET_FILE_APP_MEM_INFO, name: viewName));
+         Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.MSG_BST_PROGRESS, name: viewName));
       }
 
       public static void GetCurrentTheme(string viewName) {
@@ -204,34 +208,17 @@ namespace logAxe
          Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_POST_FILTER_SAVE, name: viewName, value: filter));
       }
 
+      public static void MsgBroadcastGlobalLine(string viewName, int globalLine)
+      {  
+         Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.MSG_GLOBAL_LINE, name: viewName, value: globalLine));
+      }
+
+      public static void ExportLinesToClipBoard(string viewName, int [] lines)
+      {
+         Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.MSG_COPY_TO_CLIPBOARD, name: viewName, value: lines));
+      }
+
       #endregion
    }
-   //partial class ViewCommon
-   //{
-   //   //public static void ProcessCommandsFromChannel(UnitMsg message) {
-   //   //   switch (message.OpCode) {
-   //   //      //case WebFrameWork.CMD_PUT_FILTER_THEME_INFO:
-   //   //      //   var info = message.GetData<UnitCmdGetThemeFilterVersionInfo>();
-   //   //      //   VersionNo = info.VersionInfo;
-   //   //      //   _currentConfig = info.CurrentConfigUI;
-   //   //      //   _savedFilterNames.Clear();
-   //   //      //   _savedFilterNames.AddRange(info.ListFilterNames);
-   //   //      //   //WaitingForInitComplete.SetResult(true);
-   //   //      //   Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_GET_FILE_LIST, name: ViewCommonName));
-   //   //      //   break;
-   //   //      case WebFrameWork.CMD_PUT_NEW_VIEW:
-   //   //         Channel.SendMsg(new UnitMsg(opCode: WebFrameWork.CMD_GET_FILE_LIST, name: ViewCommonName));
-   //   //         break;
-   //   //      case WebFrameWork.CMD_PUT_FILE_LIST:
-   //   //         _uiFileManagerFrm.FileInfo = message.GetData<LogFileInfo[]>();
-   //   //         break;
-   //   //   }
 
-   //   //}
-   
-
-
-
-      
-   //}
 }

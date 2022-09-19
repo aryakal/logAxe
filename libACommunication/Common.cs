@@ -24,46 +24,47 @@ namespace libACommunication
       public UnitMsg(string opCode, string name, object value = null, string responseStatus = "None")
       {
          OpCode = opCode;
-         UID = name;
+         UniqueId = name;
          Value = (null != value) ? value : new Dictionary<string, string>();
          Status = responseStatus;
       }
 
       public UnitMsg(string opCode, IClientInfo info, object value = null, string responseStatus = "None")
       {
-         OpCode = opCode;         
-         UID = info?.ID;
+         OpCode = opCode;
+         UniqueId = info?.UniqueId;
          Value = (null != value) ? value : new Dictionary<string, string>();
          Status = responseStatus;
       }
 
- 
-      public string OpCode { get; set; }
-      public string UID { get; set; }      
-      public object Value { get; set; }
-      public string Status { get; set; } = null;
 
-      public T GetData<T>() { 
+      public string OpCode { get; set; }
+      public string UniqueId { get; set; }
+      public object Value { get; set; }
+      public string Status { get; set; }
+
+      public T GetData<T>()
+      {
          return JsonConvert.DeserializeObject<T>(Value.ToString());
       }
    }
    public interface IClientInfo
    {
-      string ID { get; }
+      string UniqueId { get; }
    }
 
    public class SimpleClientInfo : IClientInfo
    {
       public SimpleClientInfo(string id)
       {
-         ID = id;
+         UniqueId = id;
       }
-      public string ID { get; }
+      public string UniqueId { get; }
    }
 
-   public static class SimpleClientInfogGenarator
+   public static class SimpleClientInfogGenerator
    {
-      private static int _socketClientId = 0;
+      private static int _socketClientId;
       public static SimpleClientInfo Generate()
       {
          int socketId = Interlocked.Increment(ref _socketClientId);
@@ -72,9 +73,9 @@ namespace libACommunication
    }
 
    public interface IProtoProcessorProcessClientsAdv<T> : IProtoProcessorProcessClients
-   {  
+   {
       void ProcessUnitCmd(T context);
-      
+
    }
 
    public interface IProtoProcessorProcessClients : IProtoProcessorCommand
@@ -122,28 +123,26 @@ namespace libACommunication
       long _totalClients = 0;
       public long AddClient(IClientInfo clientInfo, T instance)
       {
-         Clients[clientInfo.ID] = instance;
+         Clients[clientInfo.UniqueId] = instance;
          return Interlocked.Increment(ref _totalClients);
       }
 
       public long RemoveClient(IClientInfo clientInfo)
       {
-         if (Clients.ContainsKey(clientInfo.ID))
+         if (Clients.ContainsKey(clientInfo.UniqueId))
          {
-            Clients.Remove(clientInfo.ID);
+            Clients.Remove(clientInfo.UniqueId);
             return Interlocked.Decrement(ref _totalClients);
          }
          return TotalClients;
       }
 
-      public long TotalClients { get {
+      public long TotalClients
+      {
+         get
+         {
             return Interlocked.Read(ref _totalClients);
-         } 
+         }
       }
-
-      //public interface ICommandCovertor {
-      //   object ConvertFromPayload(int opCommand, string data);
-      //   string ConvertToPayload(int opCommand, object data);
-      //}
    }
 }

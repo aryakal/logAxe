@@ -9,7 +9,7 @@ using System.Linq;
 using System.Drawing;
 using logAxeCommon;
 using System.Windows.Forms;
-
+using System.Collections;
 
 namespace logAxe
 {
@@ -62,24 +62,25 @@ namespace logAxe
 
    public class SelectedItems
    {
-      public bool[] SelectedLines { get; set; } = new bool[0];
+      private BitArray _selectedLinesFlags { get; set; } = new BitArray(0);
+      //public bool[] SelectedLines { get; set; } = new bool[0];
       public int TotalSelected { get; set; } = 0;
       public int LastSelected { get; private set; } = LogLine.INVALID;
 
       public void Toggle(int itemNo)
       {
-         SelectedLines[itemNo] = !SelectedLines[itemNo];
-         TotalSelected = SelectedLines[itemNo] ? ++TotalSelected : --TotalSelected;
+         _selectedLinesFlags[itemNo] = !_selectedLinesFlags[itemNo];
+         TotalSelected = _selectedLinesFlags[itemNo] ? ++TotalSelected : --TotalSelected;
       }
       public void SelectItem(int itemNo)
       {
-         SelectedLines[itemNo] = true;
+         _selectedLinesFlags[itemNo] = true;
          TotalSelected++;
          LastSelected = itemNo;
       }
       public void RemoveSelect(int itemNo)
       {
-         SelectedLines[itemNo] = false;
+         _selectedLinesFlags[itemNo] = false;
          TotalSelected--;
       }
       public void SelectOnly(int itemNo)
@@ -109,7 +110,7 @@ namespace logAxe
             var max = Math.Max(LastSelected, itemNo);
             for (int ndx = min; ndx <= max; ndx++)
             {
-               SelectedLines[ndx] = true;
+               _selectedLinesFlags[ndx] = true;
                TotalSelected++;
             }
          }
@@ -117,25 +118,32 @@ namespace logAxe
       public void ClearAll()
       {
          //Resize(SelectedLines.Length);
-         Array.Clear(SelectedLines, 0, SelectedLines.Length);
+         //Array.Clear(SelectedLines, 0, SelectedLines.Length);
+         _selectedLinesFlags.SetAll(false);
          TotalSelected = 0;
          LastSelected = LogLine.INVALID;
       }
       public void Resize(int length)
       {
-         SelectedLines = new bool[length];
+         _selectedLinesFlags = new BitArray(length);
          TotalSelected = 0;
          LastSelected = LogLine.INVALID;
       }
       public int[] GetSelectedLines()
       {
          var selectedLines = new List<int>();
-         for (var ndx = 0; ndx < SelectedLines.Length; ndx++)
+         if (TotalSelected > 0)
          {
-            if (SelectedLines[ndx])
-               selectedLines.Add(ndx);
+            for (var ndx = 0; ndx < _selectedLinesFlags.Length; ndx++)
+            {
+               if (_selectedLinesFlags[ndx])
+                  selectedLines.Add(ndx);
+            }
          }
          return selectedLines.ToArray();
+      }
+      public bool IsSelected(int lineNo) {
+         return _selectedLinesFlags.Count == 0 ? false : _selectedLinesFlags[lineNo];
       }
    }
 
@@ -246,9 +254,8 @@ namespace logAxe
       {
          
       }
-      public void Resize(SizeF size)
-      {
-         var config = ViewCommon.ConfigOfSystem;
+      public void Resize(SizeF size, ConfigUI config)
+      {        
 
          ShowTableHeader = config.ShowTableHeader;
          //this["LineNo"].Visible = config.ShowLineNo;
@@ -359,21 +366,6 @@ namespace logAxe
          ScrollY = y;
          MovetoPage((int)(ScrollPagesPerPixel * (ScrollY - ScrollBarStartLoc.Y)));
       }
-      public bool SetCurrentSelection(int y, Keys keys)
-      {
-         var cntrlPressed = keys == Keys.Control;
-         var shiftPressed = keys == Keys.Shift;
-
-         var selectedLineNo = (int)(y / RowsHeight);
-         if (ShowTableHeader)
-            selectedLineNo--;
-
-         return ResetCurrentSelectedLine(CurrentDataLine + selectedLineNo, cntrlPressed, shiftPressed);
-      }
-      public bool MoveByLineDelta(int delta)
-      {
-         return ResetCurrentSelectedLine(SelectedLine.LastSelected + delta);
-      }
       public (int, int, LogLine) GetCurrentSelectedLineInfo()
       {
          if (SelectedLine.LastSelected != LogLine.INVALID)
@@ -406,6 +398,15 @@ namespace logAxe
             pageNo = TotalPages - 1;
          }
          CurrentDataLine = pageNo * RowsPerPage;
+      }
+      public LogLine MoveToPageIfLineNotInView(int lineNo)
+      {
+         var (_, info) = GetLine(lineNo);
+         if (null == info) {
+            MovetoPageWithLine(lineNo);
+            return null;
+         }
+         return info;
       }
       public void MovetoPageWithLine(int lineNo)
       {
@@ -452,28 +453,30 @@ namespace logAxe
       /// <param name="lineNumber">Line from local index.</param>
       /// <returns>bool: line is selected, LogLine : from global line.</returns>
       public (bool, LogLine) GetLine(int lineNumber)
-      {
-         return (SelectedLine.SelectedLines.Length == 0 ? false : SelectedLine.SelectedLines[lineNumber],
-                 WebLogLinesData.LogLines[lineNumber - WebLogLinesData.StartLogLine]);
+      {           
+         var lineNumberInBufferedLines = lineNumber - WebLogLinesData.StartLogLine;
+
+         if (lineNumber < 0 || lineNumberInBufferedLines >= WebLogLinesData.LogLines.Count || lineNumberInBufferedLines < 0)
+            return (false, null);
+
+         return (SelectedLine.IsSelected(lineNumber), WebLogLinesData.LogLines[lineNumberInBufferedLines]);
       }
+
       public (bool, LogLine) GetSelectedLine()
       {
-         return (false, null);
          //TODO : fix going to be difficult.
-         //if (SelectedLine.TotalSelected == 0 || SelectedLine.LastSelected == LogLine.INVALID)
-         //   return (false, null);
-
-         //return (true,
-         //    ViewCommon.Engine.GetLogLine(
-         //        ViewFrame.TranslateLine(
-         //            SelectedLine.LastSelected)));
+         if (SelectedLine.TotalSelected == 0 || SelectedLine.LastSelected == LogLine.INVALID)
+         {
+            return (false, null);
+         }
+         return GetLine(SelectedLine.LastSelected);
       }
       
       public (bool, TimeSpan) GetSelectedLineDiff()
       {
          if (SelectedLine.TotalSelected < 2 || SelectedLine.LastSelected == LogLine.INVALID)
             return (false, new TimeSpan(0));
-         var lines = SelectedLine.GetSelectedLines();
+         //var lines = SelectedLine.GetSelectedLines();
 
          //TODO : change the timespan
          return (true, new TimeSpan(0));
@@ -484,20 +487,14 @@ namespace logAxe
 
       }
 
-      public List<LogLine> GetAllSelectedLogLines()
+      public int[] GetAllSelectedLogLines()
       {
-         var lst = new List<LogLine>();
+         //var lst = new List<LogLine>();
 
-         if (SelectedLine.TotalSelected == 0 || SelectedLine.LastSelected == LogLine.INVALID)
-            return lst;
-         
-         //TODO : this is going to be tough.
-         //foreach (var line in SelectedLine.GetSelectedLines())
-         //{
-         //   lst.Add(ViewCommon.Engine.GetLogLine(ViewFrame.TranslateLine(line)));
-         //}
+         //if (SelectedLine.TotalSelected == 0 || SelectedLine.LastSelected == LogLine.INVALID)
+         //   return new int[0];
 
-         return lst;
+         return SelectedLine.GetSelectedLines();
 
       }
       /// <summary>
@@ -519,24 +516,38 @@ namespace logAxe
       /// Gets the index of the selected files on the view.
       /// </summary>
       /// <returns></returns>
-      public int[] GetFileIndexForSeletedLines()
-      {
-         var fileList = new List<int>();
-         var selectedLines = SelectedLine.GetSelectedLines();
-         foreach (var line in selectedLines)
-         {
-            var (_, logLine) = GetLine(line);
-            fileList.Add(logLine.FileNumber);
-         }
-         return fileList.Distinct().ToArray();
-      }
+      //public int[] GetFileIndexForSeletedLines()
+      //{
+      //   var fileList = new List<int>();
+      //   var selectedLines = SelectedLine.GetSelectedLines();
+      //   foreach (var line in selectedLines)
+      //   {
+      //      var (_, logLine) = GetLine(line);
+      //      fileList.Add(logLine.FileNumber);
+      //   }
+      //   return fileList.Distinct().ToArray();
+      //}
 
       public float GetYPos(int lineNumber)
       {
          return (RowsHeight * (lineNumber + 1)) + (Location.Y + OffsetStringData);
       }
+      public (bool, LogLine) SetCurrentSelection(int y, Keys keys)
+      {
+         var cntrlPressed = keys == Keys.Control;
+         var shiftPressed = keys == Keys.Shift;
 
-      private bool ResetCurrentSelectedLine(int worldLine, bool cntrlPressed = false, bool shiftPressed = false)
+         var selectedLineNo = (int)(y / RowsHeight);
+         if (ShowTableHeader)
+            selectedLineNo--;
+
+         return ResetCurrentSelectedLine(CurrentDataLine + selectedLineNo, cntrlPressed, shiftPressed);
+      }
+      public (bool, LogLine) MoveByLineDelta(int delta)
+      {
+         return ResetCurrentSelectedLine(SelectedLine.LastSelected + delta);
+      }
+      public (bool, LogLine) ResetCurrentSelectedLine(int worldLine, bool cntrlPressed = false, bool shiftPressed = false)
       {
          if (worldLine >= 0 && worldLine < ViewFrame.TotalLogLines)
          {
@@ -555,9 +566,10 @@ namespace logAxe
             {
                SelectedLine.SelectOnly(worldLine);
             }
-            return true;
+            var logLine = MoveToPageIfLineNotInView(worldLine);
+            return (true, logLine);
          }
-         return false;
+         return (false, null);
       }
       private void SetPageStats()
       {
