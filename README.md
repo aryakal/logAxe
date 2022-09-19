@@ -13,7 +13,7 @@ As with everything else in the world documenation started late. Will document ev
 * File loading 
     * Drag and drop of files on the UI.
     * Load files from Manage Files UI.
-    * Supported files genere
+    * Supported files formats.
         * Log files        
         * zip files containing log files
         * folders containing log file and zip files.
@@ -23,3 +23,4 @@ As with everything else in the world documenation started late. Will document ev
 * Filters
     * Only see the lines with certain keywords.
     * Block the lines which certain keywods
+
