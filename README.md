@@ -23,26 +23,3 @@ As with everything else in the world documenation started late. Will document ev
 * Filters
     * Only see the lines with certain keywords.
     * Block the lines which certain keywods
-* 
-
-
-### List of features
-| version |  Feature description |
-| ------ | ------------------- |
-| 0.0.1| [Drag and drop files, zip files, folder application ](feature-dragDrop.md) |
-| 0.0.2| [Filters.](feature-filters.md) |
-| 0.0.2| [Clearing files from memory.](feature-general.md)|
-| 0.2.7| [Exporting files.](feature-exportFiles.md) |
-
-
-
-### Experiment
-| version | Feature description |
-| ------ | ------------------- |
-| 0.2.0 | [web api](feature-webApi.md) |
-
-### Future features
-
-
-
-
